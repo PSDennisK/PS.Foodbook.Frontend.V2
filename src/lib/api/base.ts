@@ -1,4 +1,3 @@
-import { env } from '@/config/env';
 import { logger } from '@/lib/utils/logger';
 import type { ApiError, ApiResult } from '@/types/api';
 

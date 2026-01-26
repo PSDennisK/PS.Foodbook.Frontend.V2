@@ -15,3 +15,9 @@ export interface TokenValidation {
   payload?: JWTPayload;
   error?: string;
 }
+
+export interface PermalinkParams {
+  productId: string;
+  expires: string;
+  signature: string;
+}
