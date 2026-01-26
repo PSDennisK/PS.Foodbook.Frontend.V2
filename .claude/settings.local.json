@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(npm install)",
+      "Bash(git init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx husky init)",
+      "Bash(npx shadcn@latest add button input card dialog dropdown-menu select slider tabs skeleton toast -y)",
+      "Bash(npx shadcn@latest add button input card dialog dropdown-menu select slider tabs skeleton sonner -y)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run type-check:*)"
+    ]
+  }
+}
