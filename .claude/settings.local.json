@@ -9,7 +9,9 @@
       "Bash(npx shadcn@latest add button input card dialog dropdown-menu select slider tabs skeleton toast -y)",
       "Bash(npx shadcn@latest add button input card dialog dropdown-menu select slider tabs skeleton sonner -y)",
       "Bash(npm run lint:*)",
-      "Bash(npm run type-check:*)"
+      "Bash(npm run type-check:*)",
+      "Bash(npm run lint:fix:*)",
+      "Bash(npm test:*)"
     ]
   }
 }
