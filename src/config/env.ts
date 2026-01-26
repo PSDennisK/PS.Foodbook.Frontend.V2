@@ -1,21 +1,19 @@
-
 function getEnvVar(key: string, defaultValue?: string): string {
   // Check if we're in browser/client context
   // In test environments (Vitest with jsdom), window exists but we're still in Node.js
   // If we're in Node.js runtime (have process.versions.node), we're not in a client context
   const isNodeRuntime = typeof process !== 'undefined' && process.versions?.node !== undefined;
   const isClient = typeof window !== 'undefined' && !isNodeRuntime;
-  
+
   // Server-only env vars are not available in client
   const isServerOnly = !key.startsWith('NEXT_PUBLIC_');
-  
+
   if (isClient && isServerOnly) {
     // In client context, server-only env vars should not be accessed
     // Return placeholder or throw if no default
     if (defaultValue === undefined) {
       throw new Error(
-        `Cannot access server-only environment variable '${key}' in client context. ` +
-        `This variable should only be accessed server-side.`
+        `Cannot access server-only environment variable '${key}' in client context. This variable should only be accessed server-side.`
       );
     }
     return defaultValue;

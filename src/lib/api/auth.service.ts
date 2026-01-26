@@ -19,7 +19,7 @@ export const authService = {
   async validateToken(token: string): Promise<TokenValidation> {
     // Check if we're in client context - use API route instead
     const isClient = typeof window !== 'undefined';
-    
+
     if (isClient) {
       // Use Next.js API route for client-side validation
       const result = await apiFetch<{ isValid: boolean; payload?: JWTPayload; error?: string }>(
@@ -58,7 +58,7 @@ export const authService = {
   async refreshToken(): Promise<string | null> {
     // Check if we're in client context
     const isClient = typeof window !== 'undefined';
-    
+
     if (isClient) {
       // Client should use API route (if one exists) or this shouldn't be called from client
       throw new Error('Token refresh should be handled server-side');
