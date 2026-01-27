@@ -1,0 +1,98 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { generatePermalinkSignature } from '@/lib/auth/permalink';
+import { Check, Copy, Share2 } from 'lucide-react';
+import { useState } from 'react';
+
+interface ShareButtonProps {
+  productId: string;
+  expiresInHours?: number;
+}
+
+export function ShareButton({ productId, expiresInHours = 24 }: ShareButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const generateShareLink = async () => {
+    const expiresInSeconds = expiresInHours * 3600;
+    const params = await generatePermalinkSignature(productId, expiresInSeconds);
+
+    const url = new URL(`/productsheet/${productId}`, window.location.origin);
+    url.searchParams.set('pspid', params.productId);
+    url.searchParams.set('psexp', params.expires);
+    url.searchParams.set('pssig', params.signature);
+
+    setShareUrl(url.toString());
+    setOpen(true);
+    setCopied(false);
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
+  return (
+    <>
+      <Button onClick={generateShareLink} variant="outline">
+        <Share2 className="w-4 h-4 mr-2" />
+        Delen
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deel productsheet</DialogTitle>
+            <DialogDescription>
+              Deze link is geldig voor {expiresInHours} uur. Iedereen met deze link kan de
+              productsheet bekijken.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center space-x-2">
+            <div className="grid flex-1 gap-2">
+              <Input
+                value={shareUrl}
+                readOnly
+                className="font-mono text-sm"
+                onClick={(e) => e.currentTarget.select()}
+              />
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={copyToClipboard}
+              className="shrink-0"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              <span className="sr-only">Kopieer</span>
+            </Button>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            <p>
+              De link verloopt op:{' '}
+              {new Date(Date.now() + expiresInHours * 3600 * 1000).toLocaleString('nl-NL')}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
