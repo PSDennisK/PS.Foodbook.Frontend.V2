@@ -115,31 +115,33 @@ export const productService = {
   async search(params: SearchParams): Promise<SearchResults | null> {
     // Converteer filters naar de juiste structuur voor de API
     const filters: Array<{ key: string; values: number[] }> = [];
-    
+
     if (params.filters) {
-      Object.entries(params.filters).forEach(([key, value]) => {
+      for (const [key, value] of Object.entries(params.filters)) {
         // Converteer filter key naar juiste formaat (brand -> Brand)
         const apiKey = key === 'brand' ? 'Brand' : key;
-        
+
         // Converteer filter values naar number array
         let values: number[] = [];
-        
+
         if (Array.isArray(value)) {
-          values = value.map((v) => {
-            const num = typeof v === 'string' ? Number.parseInt(v, 10) : Number(v);
-            return Number.isNaN(num) ? 0 : num;
-          }).filter((v) => v !== 0);
+          values = value
+            .map((v) => {
+              const num = typeof v === 'string' ? Number.parseInt(v, 10) : Number(v);
+              return Number.isNaN(num) ? 0 : num;
+            })
+            .filter((v) => v !== 0);
         } else if (value !== undefined && value !== null) {
           const num = typeof value === 'string' ? Number.parseInt(value, 10) : Number(value);
           if (!Number.isNaN(num) && num !== 0) {
             values = [num];
           }
         }
-        
+
         if (values.length > 0) {
           filters.push({ key: apiKey, values });
         }
-      });
+      }
     }
 
     const payload = {
@@ -187,12 +189,12 @@ export const productService = {
     // Backend.filters is een platte array met { key, id, results }
     // We moeten deze groeperen per key en converteren naar Filter structuur
     const filterMap = new Map<string, Filter>();
-    
+
     // Verwerk backend.filters (platte array met { key, id, results })
     if (backend.filters && Array.isArray(backend.filters)) {
-      backend.filters.forEach((item: BackendSearchFilterItem) => {
-        if (!item.key) return;
-        
+      for (const item of backend.filters) {
+        if (!item.key) continue;
+
         let filter = filterMap.get(item.key);
         if (!filter) {
           // Maak nieuwe filter aan
@@ -204,7 +206,7 @@ export const productService = {
           };
           filterMap.set(item.key, filter);
         }
-        
+
         // Voeg option toe met count (results wordt count)
         if (filter.options) {
           filter.options.push({
@@ -213,7 +215,7 @@ export const productService = {
             count: item.results,
           });
         }
-      });
+      }
     }
 
     // Verwerk backend.voedingswaardes
@@ -224,10 +226,10 @@ export const productService = {
 
       if (isNewStructure) {
         // Nieuwe structuur: { id, name, minValue, maxValue }
-        (backend.voedingswaardes as BackendVoedingswaarde[]).forEach((voedingswaarde) => {
+        for (const voedingswaarde of backend.voedingswaardes as BackendVoedingswaarde[]) {
           // Gebruik name als key (of id als fallback)
           const key = voedingswaarde.name || String(voedingswaarde.id);
-          
+
           const filter: Filter = {
             id: String(voedingswaarde.id),
             key,
@@ -236,24 +238,24 @@ export const productService = {
             min: voedingswaarde.minValue,
             max: voedingswaarde.maxValue,
           };
-          
+
           filterMap.set(key, filter);
-        });
+        }
       } else {
         // Oude structuur: BackendFilter[]
         const voedingswaardesFilters = (backend.voedingswaardes as BackendFilter[]).filter(
           (filter) => filter.showInitially === true
         );
         const mappedVoedingswaardes = mapBackendFilters(voedingswaardesFilters);
-        
+
         // Merge voedingswaardes filters met bestaande filters
-        mappedVoedingswaardes.forEach((filter) => {
+        for (const filter of mappedVoedingswaardes) {
           if (filter.key) {
             const existingFilter = filterMap.get(filter.key);
             if (existingFilter && filter.options && existingFilter.options) {
               // Merge options, behoud counts uit SearchResult
               const existingOptionIds = new Set(existingFilter.options.map((opt) => opt.id));
-              filter.options.forEach((option) => {
+              for (const option of filter.options) {
                 if (!existingOptionIds.has(option.id) && existingFilter.options) {
                   existingFilter.options.push(option);
                 } else if (existingFilter.options) {
@@ -263,12 +265,12 @@ export const productService = {
                     existingOption.count = option.count;
                   }
                 }
-              });
+              }
             } else {
               filterMap.set(filter.key, filter);
             }
           }
-        });
+        }
       }
     }
 

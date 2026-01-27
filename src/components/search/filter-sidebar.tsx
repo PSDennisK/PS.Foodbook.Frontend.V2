@@ -2,16 +2,16 @@
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { type BrandAll } from '@/lib/api/brand.service';
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import type { BrandAll } from '@/lib/api/brand.service';
 import { useFilterStore } from '@/stores/filter.store';
 import { FilterType } from '@/types/enums';
 import type { Filter, FilterValue, SearchResults } from '@/types/filter';
+import { useQuery } from '@tanstack/react-query';
 
 interface FilterSidebarProps {
   filters: Filter[];
@@ -61,9 +61,12 @@ export function FilterSidebar({ filters }: FilterSidebarProps) {
         {/* Brand Filter - bovenaan */}
         <BrandFilter />
 
-        {/* Overige filters (exclusief Range filters die voedingswaardes zijn) */}
+        {/* Overige filters (exclusief Range filters die voedingswaardes zijn en Brand filter) */}
         {uniqueFilters
-          .filter((filter) => filter.type !== FilterType.RANGE)
+          .filter(
+            (filter) =>
+              filter.type !== FilterType.RANGE && filter.key !== 'Brand' && filter.key !== 'brand'
+          )
           .map((filter, index) => (
             <FilterSection key={filter.key || `filter-${index}`} filter={filter} />
           ))}
@@ -186,9 +189,12 @@ function CheckboxFilter({ filter, activeValue }: FilterComponentProps) {
                 checked={isChecked}
                 onCheckedChange={() => handleToggle(option.id)}
               />
-              <Label htmlFor={`${filter.key}-${option.id}`} className="text-sm cursor-pointer flex-1">
+              <Label
+                htmlFor={`${filter.key}-${option.id}`}
+                className="text-sm cursor-pointer flex-1"
+              >
                 {option.label}
-                {(option.count !== undefined && option.count !== null) && (
+                {option.count !== undefined && option.count !== null && (
                   <span className="text-muted-foreground ml-1">({option.count})</span>
                 )}
               </Label>
@@ -265,7 +271,8 @@ function RangeFilter({ filter, activeValue }: FilterComponentProps) {
 function SelectFilter({ filter, activeValue }: FilterComponentProps) {
   const { addFilter, removeFilter } = useFilterStore();
   const [showAll, setShowAll] = useState(false);
-  const selectedValue: string | undefined = typeof activeValue === 'string' ? activeValue : undefined;
+  const selectedValue: string | undefined =
+    typeof activeValue === 'string' ? activeValue : undefined;
 
   // Sorteer options op count (hoog naar laag), dan op label
   const sortedOptions = useMemo(() => {
@@ -357,7 +364,7 @@ function VoedingswaardenFilter({ filters }: { filters: Filter[] }) {
           const activeValue = activeFilters[filter.key];
           return (
             <div key={filter.key} className="space-y-2">
-              <label className="text-sm font-medium block">{filter.label}</label>
+              <div className="text-sm font-medium block">{filter.label}</div>
               <RangeFilter filter={filter} activeValue={activeValue} />
             </div>
           );
@@ -368,7 +375,14 @@ function VoedingswaardenFilter({ filters }: { filters: Filter[] }) {
 }
 
 function BrandFilter() {
-  const { filters: activeFilters, addFilter, removeFilter, keyword, pageIndex, pageSize } = useFilterStore();
+  const {
+    filters: activeFilters,
+    addFilter,
+    removeFilter,
+    keyword,
+    pageIndex,
+    pageSize,
+  } = useFilterStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Haal alle brands op via API route
@@ -417,30 +431,36 @@ function BrandFilter() {
   const { brandCountsMap, availableBrandIds } = useMemo(() => {
     const countsMap = new Map<number, number>();
     const availableIds = new Set<number>();
-    
+
     if (searchResults?.filters) {
       // Zoek brand filter (kan key 'Brand' of 'brand' zijn)
       const brandFilter = searchResults.filters.find((f) => f.key === 'Brand' || f.key === 'brand');
-      
+
       if (brandFilter?.options) {
         // Filter heeft options array (nieuwe structuur)
-        brandFilter.options.forEach((option) => {
-          const brandId = typeof option.id === 'number' ? option.id : Number.parseInt(String(option.id), 10);
+        for (const option of brandFilter.options) {
+          const brandId =
+            typeof option.id === 'number' ? option.id : Number.parseInt(String(option.id), 10);
           if (!Number.isNaN(brandId)) {
             availableIds.add(brandId);
             if (option.count !== undefined && option.count !== null) {
               countsMap.set(brandId, option.count);
             }
           }
-        });
+        }
       }
     }
-    
+
     return { brandCountsMap: countsMap, availableBrandIds: availableIds };
   }, [searchResults]);
 
   // Filter brands op basis van zoekquery EN beschikbare brands uit SearchResult
   const filteredBrands = useMemo(() => {
+    // Zorg ervoor dat brands altijd een array is
+    if (!Array.isArray(brands)) {
+      return [];
+    }
+
     let result = brands;
 
     // Als er SearchResult filters zijn met brands, toon alleen die brands
@@ -482,10 +502,14 @@ function BrandFilter() {
 
     if (isSelected) {
       // Verwijder alle IDs van dit brand
-      brandIds.forEach((id) => currentSelectedIds.delete(id));
+      for (const id of brandIds) {
+        currentSelectedIds.delete(id);
+      }
     } else {
       // Voeg alle IDs van dit brand toe
-      brandIds.forEach((id) => currentSelectedIds.add(id));
+      for (const id of brandIds) {
+        currentSelectedIds.add(id);
+      }
     }
 
     const newValues = Array.from(currentSelectedIds);
@@ -535,7 +559,7 @@ function BrandFilter() {
               const brandKey = brand.id[0]?.toString() || brand.name;
               const brandName = brand.name;
               const isChecked = isBrandSelected(brand);
-              
+
               // Haal count op voor dit brand (gebruik eerste ID als lookup)
               // Als brand meerdere IDs heeft, tel de counts op
               const brandCount = brand.id.reduce((total, id) => {

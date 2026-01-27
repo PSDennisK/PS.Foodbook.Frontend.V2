@@ -143,16 +143,16 @@ export function SearchBar({ securityToken }: SearchBarProps) {
               Laden...
             </div>
           ) : (
-            suggestions.map((suggestion, index) => (
+            suggestions.map((suggestion) => (
               <button
-                key={`${suggestion}-${index}`}
+                key={suggestion}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
                 className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm focus:bg-accent focus:outline-none"
                 // biome-ignore lint/a11y/useSemanticElements: Option role required for combobox listbox pattern
                 role="option"
                 aria-selected="false"
-                id={`suggestion-${index}`}
+                id={`suggestion-${suggestion}`}
               >
                 {suggestion}
               </button>

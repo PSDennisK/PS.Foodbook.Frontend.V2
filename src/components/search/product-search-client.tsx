@@ -1,6 +1,6 @@
 'use client';
-import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { useMemo } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { useFilterStore } from '@/stores/filter.store';
@@ -62,7 +62,7 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
       // Toon Range filters (zoals voedingswaardes) altijd, ook zonder search query
       const rangeFilters = initialFilters.filter((f) => f.type === FilterType.RANGE);
       const otherFilters = initialFilters.filter((f) => f.type !== FilterType.RANGE);
-      
+
       // Als er wel Range filters zijn in SearchResult, gebruik die (met juiste min/max)
       if (data?.filters && data.filters.length > 0) {
         const searchResultRangeFilters = data.filters.filter((f) => f.type === FilterType.RANGE);
@@ -71,7 +71,7 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
           return [...searchResultRangeFilters, ...otherFilters];
         }
       }
-      
+
       return initialFilters;
     }
 
@@ -79,23 +79,23 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
 
     // Maak een Map van SearchResult filters voor snelle lookup op key
     const searchResultFiltersMap = new Map<string, Filter>();
-    data.filters.forEach((filter) => {
+    for (const filter of data.filters) {
       if (filter.key) {
         searchResultFiltersMap.set(filter.key, filter);
       }
-    });
+    }
 
     // Maak Maps van option data per filter key voor snelle lookup (inclusief count)
     const searchResultOptionsMap = new Map<string, Map<string | number, FilterOption>>();
-    data.filters.forEach((filter) => {
+    for (const filter of data.filters) {
       if (filter.key && filter.options) {
         const optionMap = new Map<string | number, FilterOption>();
-        filter.options.forEach((opt) => {
+        for (const opt of filter.options) {
           optionMap.set(opt.id, opt);
-        });
+        }
         searchResultOptionsMap.set(filter.key, optionMap);
       }
-    });
+    }
 
     // Haal alle Range filters uit SearchResult (voedingswaardes)
     const searchResultRangeFilters = data.filters.filter((f) => f.type === FilterType.RANGE);
@@ -123,9 +123,11 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
 
         // Maak een Map van alle opties uit SearchResult voor snelle lookup
         const searchResultOptionsById = new Map<string | number, FilterOption>();
-        searchResultFilter.options?.forEach((opt) => {
-          searchResultOptionsById.set(opt.id, opt);
-        });
+        if (searchResultFilter.options) {
+          for (const opt of searchResultFilter.options) {
+            searchResultOptionsById.set(opt.id, opt);
+          }
+        }
 
         // Filter alleen de opties waarvan de id voorkomt in SearchResult
         // En gebruik de count uit SearchResult als die beschikbaar is
@@ -135,9 +137,10 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
             const searchResultOption = searchResultOptionsById.get(option.id);
             // Gebruik count uit SearchResult als die beschikbaar is, anders behoud de originele count
             // Prioriteit: SearchResult count > originele count
-            const count = searchResultOption?.count !== undefined && searchResultOption?.count !== null
-              ? searchResultOption.count
-              : option.count;
+            const count =
+              searchResultOption?.count !== undefined && searchResultOption?.count !== null
+                ? searchResultOption.count
+                : option.count;
 
             return {
               ...option,

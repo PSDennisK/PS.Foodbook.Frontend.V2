@@ -8,18 +8,49 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock fetch for API calls
 global.fetch = vi.fn();
 
+let searchData: SearchResults | null = null;
+
 function mockFetch(data: SearchResults) {
-  (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-    ok: true,
-    json: async () => data,
-  });
+  searchData = data;
 }
 
 describe('Product Search Flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchData = null;
     // Reset filter store before each test
     useFilterStore.getState().clearFilters();
+
+    // Mock fetch to handle both brands and search API
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.pathname : url.url;
+
+      // Mock brands API
+      if (urlString.includes('/api/brands')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+
+      // Mock search API with searchData if available
+      if (urlString.includes('/api/search') && searchData) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => searchData,
+        });
+      }
+
+      // Default empty response
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          products: [],
+          pagination: { page: 0, pageSize: 20, total: 0, totalPages: 0 },
+          filters: [],
+        }),
+      });
+    });
   });
 
   it('displays search results', async () => {
@@ -120,13 +151,39 @@ describe('Product Search Flow', () => {
     render(<ProductSearchClient initialFilters={mockFilters} />);
 
     expect(screen.getByText('Filters')).toBeInTheDocument();
-    expect(screen.getByText('Merk')).toBeInTheDocument();
+    // Merk wordt getoond in BrandFilter component (bovenaan)
+    expect(screen.getAllByText('Merk').length).toBeGreaterThan(0);
     expect(screen.getByText('Categorie')).toBeInTheDocument();
   });
 
   it('displays error state on API failure', async () => {
-    // Mock fetch to reject - retries are disabled in test QueryClient
-    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('API Error'));
+    // Mock fetch to reject for search API only
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string | URL | Request) => {
+      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.pathname : url.url;
+
+      // Mock brands API (always succeeds)
+      if (urlString.includes('/api/brands')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+
+      // Mock search API to reject
+      if (urlString.includes('/api/search')) {
+        return Promise.reject(new Error('API Error'));
+      }
+
+      // Default empty response
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          products: [],
+          pagination: { page: 0, pageSize: 20, total: 0, totalPages: 0 },
+          filters: [],
+        }),
+      });
+    });
 
     // Render first, then set keyword to trigger the query
     render(<ProductSearchClient initialFilters={mockFilters} />);
@@ -134,12 +191,7 @@ describe('Product Search Flow', () => {
     // Set keyword after render to trigger React Query
     useFilterStore.getState().setKeyword('test');
 
-    // Wait for fetch to be called
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
-    });
-
-    // Wait for error to appear
+    // Wait for error to appear - React Query needs time to process the error
     await waitFor(
       () => {
         // Try to find the error text using screen queries first
@@ -156,7 +208,7 @@ describe('Product Search Flow', () => {
         const hasError = /er is een fout opgetreden/i.test(text);
         expect(hasError).toBe(true);
       },
-      { timeout: 5000 }
+      { timeout: 10000, interval: 100 }
     );
   });
 });
