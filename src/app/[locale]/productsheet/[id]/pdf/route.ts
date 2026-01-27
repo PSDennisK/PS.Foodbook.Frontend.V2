@@ -1,4 +1,5 @@
 import { sheetService } from '@/lib/api/sheet.service';
+import { extractIdFromSlug } from '@/lib/utils/helpers';
 import { Culture } from '@/types/enums';
 import { type NextRequest, NextResponse } from 'next/server';
 
@@ -8,6 +9,7 @@ export async function GET(
 ) {
   try {
     const { id, locale } = await params;
+    const productId = extractIdFromSlug(id);
 
     // Map locale string to Culture enum
     const cultureMap: Record<string, Culture> = {
@@ -20,7 +22,7 @@ export async function GET(
     const culture = cultureMap[locale] || Culture.NL;
 
     // Generate PDF
-    const pdfBlob = await sheetService.generatePdf(id, culture);
+    const pdfBlob = await sheetService.generatePdf(productId, culture);
 
     if (!pdfBlob) {
       return NextResponse.json({ error: 'PDF generation failed' }, { status: 500 });
@@ -30,7 +32,7 @@ export async function GET(
     return new NextResponse(pdfBlob, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="productsheet-${id}.pdf"`,
+        'Content-Disposition': `attachment; filename="productsheet-${productId}.pdf"`,
         'Cache-Control': 'no-cache',
       },
     });

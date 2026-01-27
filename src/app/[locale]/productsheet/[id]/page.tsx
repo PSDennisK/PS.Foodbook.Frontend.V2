@@ -1,6 +1,7 @@
 import { ProductSheet } from '@/components/sheet/product-sheet';
 import { sheetService } from '@/lib/api/sheet.service';
 import { verifyPermalinkSignature } from '@/lib/auth/permalink';
+import { extractIdFromSlug } from '@/lib/utils/helpers';
 import { getTranslation } from '@/lib/utils/translation';
 import type { Culture } from '@/types/enums';
 import type { Metadata } from 'next';
@@ -13,7 +14,8 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, locale } = await params;
-  const product = await sheetService.getById(id);
+  const productId = extractIdFromSlug(id);
+  const product = await sheetService.getById(productId);
 
   if (!product) {
     return {
@@ -33,6 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductSheetPage({ params, searchParams }: Props) {
   const { id, locale } = await params;
   const search = await searchParams;
+  const productId = extractIdFromSlug(id);
 
   // Check permalink access if parameters are present
   if (search.pspid && search.psexp && search.pssig) {
@@ -47,7 +50,7 @@ export default async function ProductSheetPage({ params, searchParams }: Props) 
     }
   }
 
-  const product = await sheetService.getById(id);
+  const product = await sheetService.getById(productId);
 
   if (!product) {
     notFound();

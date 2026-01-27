@@ -4,6 +4,13 @@ import { apiFetch } from './base';
 
 const BASE_URL = env.api.foodbook;
 
+// Type voor Brand/All endpoint response
+export interface BrandAll {
+  id: number[];
+  name: string;
+  isPrivateLabel: boolean;
+}
+
 export const brandService = {
   async getById(id: string, token?: string): Promise<Brand | null> {
     const url = `${BASE_URL}/v2/Brand/GetBrand/${id}`;
@@ -36,5 +43,18 @@ export const brandService = {
     const result = await apiFetch<unknown>(url, { token });
 
     return result.success ? result.data : null;
+  },
+
+  async getAllBrands(token?: string): Promise<BrandAll[]> {
+    const url = `${BASE_URL}/v2/Brand/All`;
+    const result = await apiFetch<BrandAll[]>(url, { token });
+
+    console.log('getAllBrands result', result);
+
+    if (!result.success) {
+      return [];
+    }
+
+    return result.data;
   },
 };

@@ -7,6 +7,7 @@ export interface FilterOption {
 }
 
 export interface Filter {
+  id?: string;
   key: string;
   label: string;
   type: FilterType;

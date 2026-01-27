@@ -23,7 +23,7 @@ export function createSlug(id: string, name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-  return `${id}/${cleanName}`;
+  return `${id}-${cleanName}`;
 }
 
 export function slugToText(slug: string): string {
@@ -37,8 +37,10 @@ export function slugToText(slug: string): string {
 }
 
 export function extractIdFromSlug(slug: string): string {
-  // Slug format is "id/name" or just "id"
-  return slug.split('/')[0] || slug;
+  // Slug format is "id-name" or "id/name" or just "id"
+  // Extract ID by taking everything before the first dash or slash
+  const match = slug.match(/^(\d+)/);
+  return match ? match[1] : slug.split(/[-/]/)[0] || slug;
 }
 
 export function normalizeToArray<T>(value: T | T[] | undefined): T[] {

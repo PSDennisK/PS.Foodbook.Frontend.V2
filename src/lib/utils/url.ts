@@ -21,3 +21,8 @@ export function buildProductUrl(product: Product, locale: Culture): string {
 
   return getLocalizedPath(locale, `/product/${slug}`);
 }
+
+export function buildProductSheetUrl(id: string, name: string): string {
+  const slug = createSlug(id, name);
+  return `/productsheet/${slug}`;
+}

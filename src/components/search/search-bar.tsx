@@ -145,7 +145,7 @@ export function SearchBar({ securityToken }: SearchBarProps) {
           ) : (
             suggestions.map((suggestion, index) => (
               <button
-                key={suggestion}
+                key={`${suggestion}-${index}`}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
                 className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm focus:bg-accent focus:outline-none"

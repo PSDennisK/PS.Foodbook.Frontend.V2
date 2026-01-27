@@ -1,10 +1,12 @@
 'use client';
+import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { useFilterStore } from '@/stores/filter.store';
-import type { Filter, SearchResults } from '@/types/filter';
+import { FilterType } from '@/types/enums';
+import type { Filter, FilterOption, SearchResults } from '@/types/filter';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
 import { FilterSidebar } from './filter-sidebar';
 import { Pagination } from './pagination';
 import { ProductGrid } from './product-grid';
@@ -40,6 +42,8 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
         }),
       });
 
+      console.log('response', response);
+
       if (!response.ok) {
         throw new Error('Search request failed');
       }
@@ -50,12 +54,119 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
+  // Filter initialFilters op basis van filters uit SearchResult
+  // Alleen filters tonen die voorkomen in SearchResult, en alleen de opties waarvan de id voorkomt
+  const displayFilters = useMemo(() => {
+    // Als er geen search query is of geen filters in SearchResult
+    if (!hasSearchQuery || !data?.filters || data.filters.length === 0) {
+      // Toon Range filters (zoals voedingswaardes) altijd, ook zonder search query
+      const rangeFilters = initialFilters.filter((f) => f.type === FilterType.RANGE);
+      const otherFilters = initialFilters.filter((f) => f.type !== FilterType.RANGE);
+      
+      // Als er wel Range filters zijn in SearchResult, gebruik die (met juiste min/max)
+      if (data?.filters && data.filters.length > 0) {
+        const searchResultRangeFilters = data.filters.filter((f) => f.type === FilterType.RANGE);
+        if (searchResultRangeFilters.length > 0) {
+          // Merge: gebruik SearchResult Range filters als die er zijn, anders initialFilters Range filters
+          return [...searchResultRangeFilters, ...otherFilters];
+        }
+      }
+      
+      return initialFilters;
+    }
+
+    console.log('displayFilters - data.filters:', data.filters);
+
+    // Maak een Map van SearchResult filters voor snelle lookup op key
+    const searchResultFiltersMap = new Map<string, Filter>();
+    data.filters.forEach((filter) => {
+      if (filter.key) {
+        searchResultFiltersMap.set(filter.key, filter);
+      }
+    });
+
+    // Maak Maps van option data per filter key voor snelle lookup (inclusief count)
+    const searchResultOptionsMap = new Map<string, Map<string | number, FilterOption>>();
+    data.filters.forEach((filter) => {
+      if (filter.key && filter.options) {
+        const optionMap = new Map<string | number, FilterOption>();
+        filter.options.forEach((opt) => {
+          optionMap.set(opt.id, opt);
+        });
+        searchResultOptionsMap.set(filter.key, optionMap);
+      }
+    });
+
+    // Haal alle Range filters uit SearchResult (voedingswaardes)
+    const searchResultRangeFilters = data.filters.filter((f) => f.type === FilterType.RANGE);
+
+    // Filter initialFilters: alleen filters die voorkomen in SearchResult
+    // En gebruik de counts uit SearchResult
+    const filteredInitialFilters = initialFilters
+      .filter((filter) => {
+        // Range filters worden apart behandeld, skip ze hier
+        if (filter.type === FilterType.RANGE) {
+          return false;
+        }
+        // Andere filters: alleen tonen als ze voorkomen in SearchResult op basis van key
+        return searchResultFiltersMap.has(filter.key);
+      })
+      .map((filter) => {
+        // Haal de SearchResult filter op voor deze key
+        const searchResultFilter = searchResultFiltersMap.get(filter.key);
+        const searchResultOptions = searchResultOptionsMap.get(filter.key);
+
+        // Voor filters met options
+        if (!searchResultFilter || !searchResultOptions || !filter.options) {
+          return filter;
+        }
+
+        // Maak een Map van alle opties uit SearchResult voor snelle lookup
+        const searchResultOptionsById = new Map<string | number, FilterOption>();
+        searchResultFilter.options?.forEach((opt) => {
+          searchResultOptionsById.set(opt.id, opt);
+        });
+
+        // Filter alleen de opties waarvan de id voorkomt in SearchResult
+        // En gebruik de count uit SearchResult als die beschikbaar is
+        const filteredOptions = filter.options
+          .filter((option) => searchResultOptions.has(option.id))
+          .map((option) => {
+            const searchResultOption = searchResultOptionsById.get(option.id);
+            // Gebruik count uit SearchResult als die beschikbaar is, anders behoud de originele count
+            // Prioriteit: SearchResult count > originele count
+            const count = searchResultOption?.count !== undefined && searchResultOption?.count !== null
+              ? searchResultOption.count
+              : option.count;
+
+            return {
+              ...option,
+              count,
+            };
+          });
+
+        console.log('filteredOptions for filter', filter.key, filteredOptions);
+
+        return {
+          ...filter,
+          options: filteredOptions,
+        };
+      })
+      .filter((filter) => {
+        // Voor andere filters: verwijder filters zonder opties (na filtering)
+        return filter.options && filter.options.length > 0;
+      });
+
+    // Combineer: Range filters uit SearchResult + gefilterde initialFilters
+    return [...searchResultRangeFilters, ...filteredInitialFilters];
+  }, [initialFilters, data?.filters, hasSearchQuery]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* Filter Sidebar */}
       <aside className="lg:col-span-1">
         <div className="lg:sticky lg:top-4">
-          <FilterSidebar filters={initialFilters} />
+          <FilterSidebar filters={displayFilters} />
         </div>
       </aside>
 

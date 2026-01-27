@@ -33,12 +33,25 @@ interface BackendSearchProduct {
   artikelnummer?: string;
 }
 
+interface BackendSearchFilterItem {
+  key: string;
+  id: number;
+  results: number;
+}
+
+interface BackendVoedingswaarde {
+  id: number;
+  name: string;
+  minValue: number;
+  maxValue: number;
+}
+
 interface BackendSearchResults {
   results: number;
   products: BackendSearchProduct[];
-  filters: unknown[];
+  filters: BackendSearchFilterItem[];
   showSubFilters: unknown[];
-  voedingswaardes: unknown[];
+  voedingswaardes: BackendVoedingswaarde[] | BackendFilter[];
 }
 
 function mapFilterType(type: BackendFilterType): FilterType {
@@ -56,6 +69,7 @@ function mapFilterType(type: BackendFilterType): FilterType {
 
 function mapBackendFilters(backendFilters: BackendFilter[]): Filter[] {
   return backendFilters.map((filter) => ({
+    id: filter.id,
     key: filter.key,
     label: filter.name,
     type: mapFilterType(filter.filterType),
@@ -99,9 +113,38 @@ export const productService = {
   },
 
   async search(params: SearchParams): Promise<SearchResults | null> {
+    // Converteer filters naar de juiste structuur voor de API
+    const filters: Array<{ key: string; values: number[] }> = [];
+    
+    if (params.filters) {
+      Object.entries(params.filters).forEach(([key, value]) => {
+        // Converteer filter key naar juiste formaat (brand -> Brand)
+        const apiKey = key === 'brand' ? 'Brand' : key;
+        
+        // Converteer filter values naar number array
+        let values: number[] = [];
+        
+        if (Array.isArray(value)) {
+          values = value.map((v) => {
+            const num = typeof v === 'string' ? Number.parseInt(v, 10) : Number(v);
+            return Number.isNaN(num) ? 0 : num;
+          }).filter((v) => v !== 0);
+        } else if (value !== undefined && value !== null) {
+          const num = typeof value === 'string' ? Number.parseInt(value, 10) : Number(value);
+          if (!Number.isNaN(num) && num !== 0) {
+            values = [num];
+          }
+        }
+        
+        if (values.length > 0) {
+          filters.push({ key: apiKey, values });
+        }
+      });
+    }
+
     const payload = {
       keyword: params.keyword ?? '',
-      filters: [],
+      Filters: filters,
       pageIndex: params.page ?? 0,
       pageSize: params.pageSize ?? 21,
     };
@@ -141,6 +184,97 @@ export const productService = {
     console.log('search filters', backend.filters);
     console.log('search voedingswaardes', backend.voedingswaardes);
 
+    // Backend.filters is een platte array met { key, id, results }
+    // We moeten deze groeperen per key en converteren naar Filter structuur
+    const filterMap = new Map<string, Filter>();
+    
+    // Verwerk backend.filters (platte array met { key, id, results })
+    if (backend.filters && Array.isArray(backend.filters)) {
+      backend.filters.forEach((item: BackendSearchFilterItem) => {
+        if (!item.key) return;
+        
+        let filter = filterMap.get(item.key);
+        if (!filter) {
+          // Maak nieuwe filter aan
+          filter = {
+            key: item.key,
+            label: item.key, // Label wordt later uit initialFilters gehaald
+            type: FilterType.CHECKBOX, // Default type
+            options: [],
+          };
+          filterMap.set(item.key, filter);
+        }
+        
+        // Voeg option toe met count (results wordt count)
+        if (filter.options) {
+          filter.options.push({
+            id: item.id,
+            label: String(item.id), // Label wordt later uit initialFilters gehaald
+            count: item.results,
+          });
+        }
+      });
+    }
+
+    // Verwerk backend.voedingswaardes
+    if (backend.voedingswaardes && Array.isArray(backend.voedingswaardes)) {
+      // Check of het de nieuwe structuur is (met minValue/maxValue)
+      const firstItem = backend.voedingswaardes[0];
+      const isNewStructure = firstItem && 'minValue' in firstItem && 'maxValue' in firstItem;
+
+      if (isNewStructure) {
+        // Nieuwe structuur: { id, name, minValue, maxValue }
+        (backend.voedingswaardes as BackendVoedingswaarde[]).forEach((voedingswaarde) => {
+          // Gebruik name als key (of id als fallback)
+          const key = voedingswaarde.name || String(voedingswaarde.id);
+          
+          const filter: Filter = {
+            id: String(voedingswaarde.id),
+            key,
+            label: voedingswaarde.name,
+            type: FilterType.RANGE,
+            min: voedingswaarde.minValue,
+            max: voedingswaarde.maxValue,
+          };
+          
+          filterMap.set(key, filter);
+        });
+      } else {
+        // Oude structuur: BackendFilter[]
+        const voedingswaardesFilters = (backend.voedingswaardes as BackendFilter[]).filter(
+          (filter) => filter.showInitially === true
+        );
+        const mappedVoedingswaardes = mapBackendFilters(voedingswaardesFilters);
+        
+        // Merge voedingswaardes filters met bestaande filters
+        mappedVoedingswaardes.forEach((filter) => {
+          if (filter.key) {
+            const existingFilter = filterMap.get(filter.key);
+            if (existingFilter && filter.options && existingFilter.options) {
+              // Merge options, behoud counts uit SearchResult
+              const existingOptionIds = new Set(existingFilter.options.map((opt) => opt.id));
+              filter.options.forEach((option) => {
+                if (!existingOptionIds.has(option.id) && existingFilter.options) {
+                  existingFilter.options.push(option);
+                } else if (existingFilter.options) {
+                  // Update count als die beschikbaar is
+                  const existingOption = existingFilter.options.find((opt) => opt.id === option.id);
+                  if (existingOption && option.count !== undefined) {
+                    existingOption.count = option.count;
+                  }
+                }
+              });
+            } else {
+              filterMap.set(filter.key, filter);
+            }
+          }
+        });
+      }
+    }
+
+    const searchResultFilters = Array.from(filterMap.values());
+    console.log('mapped filters', searchResultFilters);
+
     return {
       products: backend.products,
       pagination: {
@@ -149,8 +283,7 @@ export const productService = {
         total,
         totalPages,
       },
-      // Voor nu gebruiken we alleen de losse /v2/Filter/List voor filter-definities
-      filters: [],
+      filters: searchResultFilters,
     };
   },
 
@@ -181,6 +314,8 @@ export const productService = {
   async getFilters(): Promise<Filter[]> {
     const url = `${BASE_URL}/v2/Filter/List`;
     const result = await apiFetch<BackendFilter[]>(url);
+
+    console.log('getFilters result', result);
 
     if (!result.success) {
       return [];

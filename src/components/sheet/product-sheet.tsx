@@ -4,6 +4,7 @@ import { ProductInfo } from '@/components/product/product-info';
 import { ProductIngredients } from '@/components/product/product-ingredients';
 import { ProductNutrients } from '@/components/product/product-nutrients';
 import { Card } from '@/components/ui/card';
+import { getTranslation } from '@/lib/utils/translation';
 import type { Culture } from '@/types/enums';
 import type { Product } from '@/types/product';
 import { DownloadPdfButton } from './download-pdf-button';
@@ -16,6 +17,7 @@ interface ProductSheetProps {
 
 export function ProductSheet({ product, locale }: ProductSheetProps) {
   const productId = product.product.summary.id;
+  const productName = getTranslation(product.product.summary.name, locale);
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-5xl">
@@ -23,8 +25,8 @@ export function ProductSheet({ product, locale }: ProductSheetProps) {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold">Productsheet</h1>
         <div className="flex gap-2">
-          <ShareButton productId={productId} />
-          <DownloadPdfButton productId={productId} locale={locale} />
+          <ShareButton productId={productId} productName={productName} />
+          <DownloadPdfButton productId={productId} productName={productName} locale={locale} />
         </div>
       </div>
 

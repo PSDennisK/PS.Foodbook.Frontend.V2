@@ -1,7 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
 import { createSlug } from '@/lib/utils/helpers';
-import { getLocalizedPath } from '@/lib/utils/url';
 import type { Culture } from '@/types/enums';
 import type { SearchProduct } from '@/types/filter';
 import Image from 'next/image';
@@ -17,7 +16,7 @@ const NO_IMAGE = '/images/no-image.png';
 export function ProductCard({ product, locale, priority = false }: ProductCardProps) {
   const name = product.name;
   const slug = createSlug(String(product.id), name);
-  const url = getLocalizedPath(locale, `/product/${slug}`);
+  const url = `/product/${slug}`;
   const imageUrl = product.image || NO_IMAGE;
 
   return (

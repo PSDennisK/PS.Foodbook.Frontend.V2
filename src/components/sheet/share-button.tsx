@@ -10,15 +10,17 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { generatePermalinkSignature } from '@/lib/auth/permalink';
+import { buildProductSheetUrl } from '@/lib/utils/url';
 import { Check, Copy, Share2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface ShareButtonProps {
   productId: string;
+  productName: string;
   expiresInHours?: number;
 }
 
-export function ShareButton({ productId, expiresInHours = 24 }: ShareButtonProps) {
+export function ShareButton({ productId, productName, expiresInHours = 24 }: ShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
@@ -27,7 +29,8 @@ export function ShareButton({ productId, expiresInHours = 24 }: ShareButtonProps
     const expiresInSeconds = expiresInHours * 3600;
     const params = await generatePermalinkSignature(productId, expiresInSeconds);
 
-    const url = new URL(`/productsheet/${productId}`, window.location.origin);
+    const slug = buildProductSheetUrl(productId, productName);
+    const url = new URL(slug, window.location.origin);
     url.searchParams.set('pspid', params.productId);
     url.searchParams.set('psexp', params.expires);
     url.searchParams.set('pssig', params.signature);

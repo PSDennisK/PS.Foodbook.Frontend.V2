@@ -1,0 +1,62 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: |
+          npm run type-check
+          npm run lint
+          npm test -- --run
+
+      - name: Build Docker image
+        run: |
+          docker build -t ps-foodbook-app:${{ github.sha }} .
+          docker tag ps-foodbook-app:${{ github.sha }} ps-foodbook-app:latest
+
+      - name: Save Docker image
+        run: docker save ps-foodbook-app:latest | gzip > ps-foodbook-app.tar.gz
+
+      - name: Deploy to production
+        run: |
+          echo "Deployment step - configure based on your infrastructure"
+          echo "Options: Docker Hub push, AWS ECR, Azure Container Registry, etc."
+
+      # Example: Deploy to Docker Hub
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
+      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # - name: Push to Docker Hub
+      #   run: |
+      #     docker tag ps-foodbook-app:latest ${{ secrets.DOCKERHUB_USERNAME }}/ps-foodbook-app:latest
+      #     docker push ${{ secrets.DOCKERHUB_USERNAME }}/ps-foodbook-app:latest
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          echo "Deployment completed with status: ${{ job.status }}"
+          # Add Slack/Teams/Email notification here
