@@ -1,10 +1,12 @@
 import { ProductDetail } from '@/components/product/product-detail';
+import { ProductDetailSkeleton } from '@/components/product/product-detail-skeleton';
 import { productService } from '@/lib/api/product.service';
 import { extractIdFromSlug } from '@/lib/utils/helpers';
 import { getTranslation } from '@/lib/utils/translation';
 import type { Culture } from '@/types/enums';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 
 interface Props {
   params: Promise<{ id: string; locale: string }>;
@@ -39,5 +41,9 @@ export default async function ProductDetailPage({ params }: Props) {
     notFound();
   }
 
-  return <ProductDetail product={product} locale={locale as Culture} />;
+  return (
+    <Suspense fallback={<ProductDetailSkeleton />}>
+      <ProductDetail product={product} locale={locale as Culture} />
+    </Suspense>
+  );
 }

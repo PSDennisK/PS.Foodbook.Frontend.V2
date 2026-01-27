@@ -3,10 +3,22 @@
     "search": "Zoeken",
     "loading": "Laden...",
     "error": "Er is een fout opgetreden",
+    "home": "Home",
+    "openMenu": "Menu openen",
+    "navigation": "Navigatie",
+    "mobileNavigation": "Mobiele navigatie",
     "unauthorized": {
       "title": "Geen toegang",
       "message": "Je hebt geen toegang tot deze pagina. Log in om verder te gaan.",
       "backToHome": "Terug naar home"
+    },
+    "emptyState": {
+      "noResults": "Geen resultaten gevonden",
+      "noResultsDescription": "Probeer je zoekopdracht aan te passen of gebruik andere filters.",
+      "noProducts": "Geen producten beschikbaar",
+      "noProductsDescription": "Er zijn momenteel geen producten beschikbaar.",
+      "startSearching": "Begin met zoeken",
+      "startSearchingDescription": "Gebruik de zoekbalk hierboven of selecteer filters om producten te vinden."
     }
   }
 }

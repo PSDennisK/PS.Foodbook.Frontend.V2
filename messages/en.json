@@ -3,10 +3,22 @@
     "search": "Search",
     "loading": "Loading...",
     "error": "An error occurred",
+    "home": "Home",
+    "openMenu": "Open menu",
+    "navigation": "Navigation",
+    "mobileNavigation": "Mobile navigation",
     "unauthorized": {
       "title": "Unauthorized",
       "message": "You don't have access to this page. Please log in to continue.",
       "backToHome": "Back to home"
+    },
+    "emptyState": {
+      "noResults": "No results found",
+      "noResultsDescription": "Try adjusting your search or use different filters.",
+      "noProducts": "No products available",
+      "noProductsDescription": "There are currently no products available.",
+      "startSearching": "Start searching",
+      "startSearchingDescription": "Use the search bar above or select filters to find products."
     }
   }
 }

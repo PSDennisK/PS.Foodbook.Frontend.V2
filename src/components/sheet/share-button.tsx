@@ -49,8 +49,18 @@ export function ShareButton({ productId, expiresInHours = 24 }: ShareButtonProps
 
   return (
     <>
-      <Button onClick={generateShareLink} variant="outline">
-        <Share2 className="w-4 h-4 mr-2" />
+      <Button
+        onClick={generateShareLink}
+        variant="outline"
+        aria-label="Deel productsheet"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            generateShareLink();
+          }
+        }}
+      >
+        <Share2 className="w-4 h-4 mr-2" aria-hidden="true" />
         Delen
       </Button>
 
@@ -71,6 +81,8 @@ export function ShareButton({ productId, expiresInHours = 24 }: ShareButtonProps
                 readOnly
                 className="font-mono text-sm"
                 onClick={(e) => e.currentTarget.select()}
+                aria-label="Deel link"
+                aria-describedby="share-url-description"
               />
             </div>
             <Button
@@ -79,9 +91,14 @@ export function ShareButton({ productId, expiresInHours = 24 }: ShareButtonProps
               variant="outline"
               onClick={copyToClipboard}
               className="shrink-0"
+              aria-label={copied ? 'Link gekopieerd' : 'Kopieer link naar klembord'}
             >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span className="sr-only">Kopieer</span>
+              {copied ? (
+                <Check className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Copy className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="sr-only">{copied ? 'Gekopieerd' : 'Kopieer'}</span>
             </Button>
           </div>
 

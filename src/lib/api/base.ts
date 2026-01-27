@@ -58,12 +58,16 @@ export async function apiFetch<T>(url: string, options: FetchOptions = {}): Prom
   }
 
   for (let attempt = 1; attempt <= retries; attempt++) {
+    let timeoutTriggered = false;
+    const timeoutMs = timeout * 2 ** (attempt - 1);
     try {
       await enforceRateLimit();
 
       const controller = new AbortController();
-      const timeoutMs = timeout * 2 ** (attempt - 1);
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const timeoutId = setTimeout(() => {
+        timeoutTriggered = true;
+        controller.abort();
+      }, timeoutMs);
 
       const response = await fetch(url, {
         ...fetchOptions,
@@ -95,18 +99,37 @@ export async function apiFetch<T>(url: string, options: FetchOptions = {}): Prom
       const data = await response.json();
       return { success: true, data };
     } catch (error) {
+      const isAbortError = error instanceof Error && error.name === 'AbortError';
+      const isTimeout = timeoutTriggered && isAbortError;
+
       if (attempt < retries) {
-        logger.warn(`Request failed, retrying (${attempt}/${retries})`, 'apiFetch');
+        const errorMessage = isTimeout
+          ? `Request timeout (${timeoutMs}ms), retrying (${attempt}/${retries})`
+          : `Request failed, retrying (${attempt}/${retries})`;
+        logger.warn(errorMessage, 'apiFetch', { url, attempt, retries });
         await new Promise((resolve) => setTimeout(resolve, 2 ** attempt * 1000));
         continue;
       }
 
       const apiError: ApiError = {
-        message: error instanceof Error ? error.message : 'Unknown error',
+        message: isTimeout
+          ? `Request timeout after ${timeoutMs}ms (${retries} attempts)`
+          : isAbortError
+            ? 'Request was cancelled'
+            : error instanceof Error
+              ? error.message
+              : 'Unknown error',
         status: 0,
       };
 
-      logger.error(`API request failed: ${apiError.message}`, 'apiFetch');
+      // Log timeout errors as warnings since they're expected in some scenarios
+      // Also log AbortErrors as warnings in server-side context (common during SSR/navigation)
+      if (isTimeout || (isAbortError && typeof window === 'undefined')) {
+        logger.warn(`API request aborted: ${apiError.message}`, 'apiFetch', { url, isTimeout });
+      } else {
+        logger.error(`API request failed: ${apiError.message}`, 'apiFetch', { url });
+      }
+
       return { success: false, error: apiError };
     }
   }

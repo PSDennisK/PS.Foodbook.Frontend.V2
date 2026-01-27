@@ -30,23 +30,32 @@ export function FilterSidebar({ filters }: FilterSidebarProps) {
   }, [filters]);
 
   return (
-    <div className="space-y-6">
+    // biome-ignore lint/a11y/useSemanticElements: Region role is appropriate for filter sidebar landmark
+    <aside className="space-y-6" aria-label="Product filters" role="region">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-lg">Filters</h2>
+        <h2 className="font-semibold text-lg" id="filter-heading">
+          Filters
+        </h2>
         {activeFilterCount > 0 && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="h-4 w-4 mr-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            aria-label={`Wis alle filters (${activeFilterCount} actief)`}
+          >
+            <X className="h-4 w-4 mr-1" aria-hidden="true" />
             Wis alles ({activeFilterCount})
           </Button>
         )}
       </div>
 
-      <div className="space-y-4">
+      {/* biome-ignore lint/a11y/useSemanticElements: Group role is appropriate for filter collection */}
+      <div className="space-y-4" role="group" aria-labelledby="filter-heading">
         {uniqueFilters.map((filter) => (
           <FilterSection key={filter.key} filter={filter} />
         ))}
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -64,14 +73,33 @@ function FilterSection({ filter }: FilterSectionProps) {
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center justify-between w-full mb-3 hover:text-primary transition-colors"
+        className="flex items-center justify-between w-full mb-3 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+        aria-expanded={isExpanded}
+        aria-controls={`filter-${filter.key}`}
+        id={`filter-${filter.key}-button`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsExpanded(!isExpanded);
+          }
+        }}
       >
         <span className="font-medium text-sm">{filter.label}</span>
-        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        {isExpanded ? (
+          <ChevronUp className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        )}
       </button>
 
       {isExpanded && (
-        <div className="space-y-2">
+        <div
+          className="space-y-2"
+          id={`filter-${filter.key}`}
+          // biome-ignore lint/a11y/useSemanticElements: Region role is appropriate for expandable filter section
+          role="region"
+          aria-labelledby={`filter-${filter.key}-button`}
+        >
           {filter.type === FilterType.CHECKBOX && (
             <CheckboxFilter filter={filter} activeValue={activeValue} />
           )}
@@ -167,13 +195,19 @@ function RangeFilter({ filter, activeValue }: FilterComponentProps) {
         step={1}
         value={[currentRange.min, currentRange.max]}
         onValueChange={handleChange}
+        aria-label={`${filter.label} bereik`}
       />
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">
+        <span className="text-muted-foreground" aria-live="polite">
           {currentRange.min} - {currentRange.max}
         </span>
         {(currentRange.min !== min || currentRange.max !== max) && (
-          <Button variant="ghost" size="sm" onClick={handleReset}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            aria-label={`Reset ${filter.label} filter`}
+          >
             Reset
           </Button>
         )}
@@ -196,7 +230,7 @@ function SelectFilter({ filter, activeValue }: FilterComponentProps) {
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" role="radiogroup" aria-label={filter.label}>
       {filter.options?.map((option) => {
         const isSelected = selectedValue === String(option.id);
         return (
@@ -204,13 +238,20 @@ function SelectFilter({ filter, activeValue }: FilterComponentProps) {
             key={option.id}
             type="button"
             onClick={() => handleSelect(option.id)}
-            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
               isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
             }`}
+            // biome-ignore lint/a11y/useSemanticElements: Radio role is appropriate for custom radio button in radiogroup
+            role="radio"
+            aria-checked={isSelected}
+            aria-label={`${option.label}${option.count !== undefined ? ` (${option.count} producten)` : ''}`}
           >
             {option.label}
             {option.count !== undefined && (
-              <span className={isSelected ? 'opacity-80 ml-1' : 'text-muted-foreground ml-1'}>
+              <span
+                className={isSelected ? 'opacity-80 ml-1' : 'text-muted-foreground ml-1'}
+                aria-hidden="true"
+              >
                 ({option.count})
               </span>
             )}

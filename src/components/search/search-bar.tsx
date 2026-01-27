@@ -78,16 +78,24 @@ export function SearchBar({ securityToken }: SearchBarProps) {
   return (
     <div className="relative mb-6">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search
+          className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           ref={inputRef}
-          type="text"
+          type="search"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => setShowSuggestions(true)}
           placeholder="Zoek op productnaam, EAN, merk..."
           className="pl-10 pr-24"
+          aria-label="Zoek producten"
+          aria-autocomplete="list"
+          aria-controls="search-suggestions"
+          aria-expanded={showSuggestions && suggestions.length > 0}
+          role="combobox"
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
           {keyword && (
@@ -102,26 +110,49 @@ export function SearchBar({ securityToken }: SearchBarProps) {
               <X className="h-4 w-4" />
             </Button>
           )}
-          <Button type="button" onClick={handleSearch} size="sm" className="h-8">
+          <Button
+            type="button"
+            onClick={handleSearch}
+            size="sm"
+            className="h-8"
+            aria-label="Zoek producten"
+          >
             Zoeken
           </Button>
         </div>
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
+        // biome-ignore lint/a11y/useFocusableInteractive: Combobox pattern requires listbox role on non-focusable container
+        // biome-ignore lint/a11y/useSemanticElements: Combobox pattern requires custom listbox implementation
         <div
           ref={dropdownRef}
+          id="search-suggestions"
+          // biome-ignore lint/a11y/useSemanticElements: Combobox pattern requires custom listbox implementation
+          role="listbox"
           className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-80 overflow-y-auto"
+          aria-label="Zoeksuggesties"
         >
           {isLoading ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">Laden...</div>
+            <div
+              className="px-4 py-3 text-sm text-muted-foreground"
+              // biome-ignore lint/a11y/useSemanticElements: Status role is appropriate for loading state
+              role="status"
+              aria-live="polite"
+            >
+              Laden...
+            </div>
           ) : (
-            suggestions.map((suggestion) => (
+            suggestions.map((suggestion, index) => (
               <button
                 key={suggestion}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm"
+                className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm focus:bg-accent focus:outline-none"
+                // biome-ignore lint/a11y/useSemanticElements: Option role required for combobox listbox pattern
+                role="option"
+                aria-selected="false"
+                id={`suggestion-${index}`}
               >
                 {suggestion}
               </button>

@@ -3,10 +3,22 @@
     "search": "Suchen",
     "loading": "Laden...",
     "error": "Ein Fehler ist aufgetreten",
+    "home": "Startseite",
+    "openMenu": "Menü öffnen",
+    "navigation": "Navigation",
+    "mobileNavigation": "Mobile Navigation",
     "unauthorized": {
       "title": "Nicht autorisiert",
       "message": "Sie haben keinen Zugriff auf diese Seite. Bitte melden Sie sich an, um fortzufahren.",
       "backToHome": "Zurück zur Startseite"
+    },
+    "emptyState": {
+      "noResults": "Keine Ergebnisse gefunden",
+      "noResultsDescription": "Versuchen Sie, Ihre Suche anzupassen oder andere Filter zu verwenden.",
+      "noProducts": "Keine Produkte verfügbar",
+      "noProductsDescription": "Es sind derzeit keine Produkte verfügbar.",
+      "startSearching": "Suche starten",
+      "startSearchingDescription": "Verwenden Sie die Suchleiste oben oder wählen Sie Filter aus, um Produkte zu finden."
     }
   }
 }

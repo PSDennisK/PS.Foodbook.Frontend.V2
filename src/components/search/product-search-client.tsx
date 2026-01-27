@@ -1,8 +1,10 @@
 'use client';
 
+import { EmptyState } from '@/components/ui/empty-state';
 import { useFilterStore } from '@/stores/filter.store';
 import type { Filter, SearchResults } from '@/types/filter';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { FilterSidebar } from './filter-sidebar';
 import { Pagination } from './pagination';
 import { ProductGrid } from './product-grid';
@@ -16,6 +18,10 @@ interface ProductSearchClientProps {
 
 export function ProductSearchClient({ initialFilters, securityToken }: ProductSearchClientProps) {
   const { keyword, filters, pageIndex, pageSize } = useFilterStore();
+  const t = useTranslations('common');
+
+  // Check if there's a search query (keyword or filters)
+  const hasSearchQuery = Boolean(keyword?.trim()) || Object.keys(filters).length > 0;
 
   const { data, isLoading, error } = useQuery<SearchResults>({
     queryKey: ['products', 'search', keyword, filters, pageIndex, pageSize, securityToken],
@@ -40,6 +46,7 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
 
       return (await response.json()) as SearchResults;
     },
+    enabled: hasSearchQuery, // Only fetch when there's a search query
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
@@ -83,15 +90,31 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
           </div>
         )}
 
+        {/* Initial State - No search query */}
+        {!hasSearchQuery && (
+          <EmptyState
+            title={t('emptyState.startSearching')}
+            description={t('emptyState.startSearchingDescription')}
+          />
+        )}
+
         {/* Loading State */}
-        {isLoading && <ProductGridSkeleton count={pageSize} />}
+        {hasSearchQuery && isLoading && <ProductGridSkeleton count={pageSize} />}
 
         {/* Product Grid */}
-        {!isLoading && data?.products && (
+        {hasSearchQuery && !isLoading && data?.products && data.products.length > 0 && (
           <>
             <ProductGrid products={data.products} />
             <Pagination pagination={data.pagination} />
           </>
+        )}
+
+        {/* Empty State - No results found */}
+        {hasSearchQuery && !isLoading && data?.products && data.products.length === 0 && (
+          <EmptyState
+            title={t('emptyState.noResults')}
+            description={t('emptyState.noResultsDescription')}
+          />
         )}
       </main>
     </div>
