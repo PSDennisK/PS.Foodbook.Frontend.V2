@@ -2,6 +2,11 @@
   "common": {
     "search": "Rechercher",
     "loading": "Chargement...",
-    "error": "Une erreur s'est produite"
+    "error": "Une erreur s'est produite",
+    "unauthorized": {
+      "title": "Non autorisé",
+      "message": "Vous n'avez pas accès à cette page. Veuillez vous connecter pour continuer.",
+      "backToHome": "Retour à l'accueil"
+    }
   }
 }

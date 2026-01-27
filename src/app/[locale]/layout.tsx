@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
 import { QueryProvider } from '@/components/providers/query-provider';
@@ -31,14 +31,20 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  const messages = await getMessages();
+  // Enable static rendering for this locale
+  setRequestLocale(locale);
+
+  // Load messages for the locale
+  const messages = (await import(`../../../messages/${locale}.json`)).default;
 
   return (
     <html lang={locale}>
       <body>
         <QueryProvider>
           <AuthProvider>
-            <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+            <NextIntlClientProvider locale={locale} messages={messages}>
+              {children}
+            </NextIntlClientProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

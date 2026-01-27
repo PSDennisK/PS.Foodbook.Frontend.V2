@@ -1,18 +1,22 @@
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
-import { useTranslations } from 'next-intl';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
-export default function UnauthorizedPage() {
-  const t = useTranslations('common');
+export default async function UnauthorizedPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('common');
 
   return (
     <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center">
-      <h1 className="text-4xl font-bold">Geen toegang</h1>
-      <p className="mt-4 text-muted-foreground">
-        Je hebt geen toegang tot deze pagina. Log in om verder te gaan.
-      </p>
+      <h1 className="text-4xl font-bold">{t('unauthorized.title')}</h1>
+      <p className="mt-4 text-muted-foreground">{t('unauthorized.message')}</p>
       <Button asChild className="mt-6">
-        <Link href="/">Terug naar home</Link>
+        <Link href="/">{t('unauthorized.backToHome')}</Link>
       </Button>
     </div>
   );

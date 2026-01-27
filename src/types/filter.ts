@@ -1,5 +1,4 @@
 import type { FilterType } from './enums';
-import type { ProductSummary } from './product';
 
 export interface FilterOption {
   id: string | number;
@@ -28,8 +27,17 @@ export interface SearchParams {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface SearchProduct {
+  id: number;
+  name: string;
+  image?: string;
+  brand?: string;
+  gtin?: string;
+  artikelnummer?: string;
+}
+
 export interface SearchResults {
-  products: ProductSummary[];
+  products: SearchProduct[];
   pagination: {
     page: number;
     pageSize: number;

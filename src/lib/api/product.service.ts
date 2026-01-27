@@ -1,10 +1,71 @@
 import { env } from '@/config/env';
+import { FilterType } from '@/types/enums';
 import type { Culture } from '@/types/enums';
 import type { Filter, SearchParams, SearchResults } from '@/types/filter';
 import { type Product, ProductSchema } from '@/types/product';
 import { apiFetch } from './base';
 
 const BASE_URL = env.api.foodbook;
+
+type BackendFilterType = 'Checkbox' | 'Slider' | 'Select';
+
+interface BackendFilterOption {
+  id: string | number;
+  name: string;
+  count?: number;
+}
+
+interface BackendFilter {
+  id: string;
+  name: string;
+  key: string;
+  filterType: BackendFilterType;
+  showInitially: boolean;
+  options?: BackendFilterOption[];
+}
+
+interface BackendSearchProduct {
+  id: number;
+  name: string;
+  image?: string;
+  brand?: string;
+  gtin?: string;
+  artikelnummer?: string;
+}
+
+interface BackendSearchResults {
+  results: number;
+  products: BackendSearchProduct[];
+  filters: unknown[];
+  showSubFilters: unknown[];
+  voedingswaardes: unknown[];
+}
+
+function mapFilterType(type: BackendFilterType): FilterType {
+  switch (type) {
+    case 'Checkbox':
+      return FilterType.CHECKBOX;
+    case 'Slider':
+      return FilterType.RANGE;
+    case 'Select':
+      return FilterType.SELECT;
+    default:
+      return FilterType.CHECKBOX;
+  }
+}
+
+function mapBackendFilters(backendFilters: BackendFilter[]): Filter[] {
+  return backendFilters.map((filter) => ({
+    key: filter.key,
+    label: filter.name,
+    type: mapFilterType(filter.filterType),
+    options: filter.options?.map((option) => ({
+      id: option.id,
+      label: option.name,
+      count: option.count,
+    })),
+  }));
+}
 
 export const productService = {
   async getById(id: string, token?: string): Promise<Product | null> {
@@ -38,37 +99,69 @@ export const productService = {
   },
 
   async search(params: SearchParams): Promise<SearchResults | null> {
-    const url = `${BASE_URL}/v2/Product/GetSearchResult`;
-    const result = await apiFetch<unknown>(url, {
+    const url = `${BASE_URL}/v2/Search/SearchResults`;
+
+    const payload = {
+      keyword: params.keyword ?? '',
+      filters: [],
+      pageIndex: params.page ?? 0,
+      pageSize: params.pageSize ?? 21,
+    };
+
+    const result = await apiFetch<BackendSearchResults>(url, {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: JSON.stringify(payload),
     });
 
     if (!result.success) {
       return null;
     }
 
-    // TODO: Parse with Zod schema
-    return result.data as SearchResults;
+    const backend = result.data;
+
+    const page = params.page ?? 0;
+    const pageSize = params.pageSize ?? 21;
+    const total = backend.results;
+    const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
+
+    console.log('search products', backend.products);
+    console.log('search filters', backend.filters);
+    console.log('search voedingswaardes', backend.voedingswaardes);
+
+    return {
+      products: backend.products,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
+      // Voor nu gebruiken we alleen de losse /v2/Filter/List voor filter-definities
+      filters: [],
+    };
   },
 
   async autocomplete(keyword: string, locale: Culture): Promise<string[]> {
-    const url = `${BASE_URL}/v2/Product/GetAutocomplete/${locale}/${encodeURIComponent(keyword)}`;
+    const url = `${BASE_URL}/v2/Search/${locale}/AutoComplete/${encodeURIComponent(keyword)}`;
     const result = await apiFetch<string[]>(url);
 
     return result.success ? result.data : [];
   },
 
   async getFilters(): Promise<Filter[]> {
-    const url = `${BASE_URL}/v2/Product/GetFilters`;
-    const result = await apiFetch<Filter[]>(url);
+    const url = `${BASE_URL}/v2/Filter/List`;
+    const result = await apiFetch<BackendFilter[]>(url);
 
-    return result.success ? result.data : [];
+    if (!result.success) {
+      return [];
+    }
+
+    return mapBackendFilters(result.data);
   },
 
   async getImpactScore(mongoId: string, type: 'farm' | 'gate'): Promise<unknown | null> {
-    const endpoint = type === 'farm' ? 'GetImpactScoreFarm' : 'GetImpactScoreGate';
-    const url = `${BASE_URL}/v2/Product/${endpoint}/${mongoId}`;
+    const endpoint = type === 'farm' ? 'Farmtofarm' : 'Cradletogate';
+    const url = `${BASE_URL}/v2/Co/${endpoint}/${mongoId}`;
     const result = await apiFetch<unknown>(url);
 
     return result.success ? result.data : null;

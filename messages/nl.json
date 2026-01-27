@@ -2,6 +2,11 @@
   "common": {
     "search": "Zoeken",
     "loading": "Laden...",
-    "error": "Er is een fout opgetreden"
+    "error": "Er is een fout opgetreden",
+    "unauthorized": {
+      "title": "Geen toegang",
+      "message": "Je hebt geen toegang tot deze pagina. Log in om verder te gaan.",
+      "backToHome": "Terug naar home"
+    }
   }
 }

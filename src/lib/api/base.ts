@@ -29,6 +29,17 @@ function isRetriableError(status: number): boolean {
 }
 
 export async function apiFetch<T>(url: string, options: FetchOptions = {}): Promise<ApiResult<T>> {
+  // Skip API calls during build if URL contains placeholder (from env.ts)
+  if (url.includes('__') || url.startsWith('__')) {
+    return {
+      success: false,
+      error: {
+        message: 'API URL not configured (build-time placeholder)',
+        status: 0,
+      },
+    };
+  }
+
   const {
     timeout = DEFAULT_TIMEOUT,
     retries = DEFAULT_RETRIES,

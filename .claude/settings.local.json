@@ -14,7 +14,13 @@
       "Bash(npm test:*)",
       "Bash(cat:*)",
       "Bash(ls:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(test:*)",
+      "Bash(taskkill /F /PID 11592)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill //F //PID 11592)",
+      "Bash(npx shadcn@latest add checkbox)",
+      "Bash(npx shadcn@latest:*)"
     ]
   }
 }

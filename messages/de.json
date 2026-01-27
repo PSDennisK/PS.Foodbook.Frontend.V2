@@ -2,6 +2,11 @@
   "common": {
     "search": "Suchen",
     "loading": "Laden...",
-    "error": "Ein Fehler ist aufgetreten"
+    "error": "Ein Fehler ist aufgetreten",
+    "unauthorized": {
+      "title": "Nicht autorisiert",
+      "message": "Sie haben keinen Zugriff auf diese Seite. Bitte melden Sie sich an, um fortzufahren.",
+      "backToHome": "Zurück zur Startseite"
+    }
   }
 }

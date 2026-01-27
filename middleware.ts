@@ -1,4 +1,4 @@
-import createIntlMiddleware from 'next-intl/middleware';
+import createMiddleware from 'next-intl/middleware';
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { routing } from './src/i18n/routing';
@@ -6,7 +6,8 @@ import { verifyToken } from './src/lib/auth/jwt';
 import { verifyPermalinkSignature } from './src/lib/auth/permalink';
 import { getCookieName } from './src/lib/utils/helpers';
 
-const intlMiddleware = createIntlMiddleware(routing);
+// Create next-intl middleware for locale handling
+const intlMiddleware = createMiddleware(routing);
 
 // Protected routes patterns
 const PROTECTED_ROUTES = [/\/digitalcatalog\/[^/]+/, /\/productsheet\/[^/]+/];
@@ -18,7 +19,17 @@ function isProtectedRoute(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Check if route needs protection
+  // Extract locale from pathname (if present)
+  // Since localePrefix is 'as-needed', nl has no prefix
+  let locale = routing.defaultLocale;
+  for (const loc of routing.locales) {
+    if (pathname.startsWith(`/${loc}/`) || pathname === `/${loc}`) {
+      locale = loc;
+      break;
+    }
+  }
+
+  // Check if route needs protection (before intl middleware)
   if (isProtectedRoute(pathname)) {
     // Check for permalink parameters
     const searchParams = request.nextUrl.searchParams;
@@ -34,7 +45,7 @@ export async function middleware(request: NextRequest) {
       });
 
       if (isValid) {
-        // Set permissive cookie for 10 minutes
+        // Let intl middleware handle locale routing, then add cookie
         const response = intlMiddleware(request);
         response.cookies.set('permalink_access', 'true', {
           httpOnly: true,
@@ -42,6 +53,14 @@ export async function middleware(request: NextRequest) {
           maxAge: 600,
           sameSite: 'lax',
         });
+        // Add security headers
+        response.headers.set('X-Frame-Options', 'DENY');
+        response.headers.set('X-Content-Type-Options', 'nosniff');
+        response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        response.headers.set(
+          'Content-Security-Policy',
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
+        );
         return response;
       }
     }
@@ -55,26 +74,29 @@ export async function middleware(request: NextRequest) {
       const token = request.cookies.get(cookieName)?.value;
 
       if (!token) {
-        // Redirect to unauthorized
-        const url = new URL('/unauthorized', request.url);
+        // Redirect to unauthorized with locale (nl has no prefix)
+        const unauthorizedPath =
+          locale === routing.defaultLocale ? '/unauthorized' : `/${locale}/unauthorized`;
+        const url = new URL(unauthorizedPath, request.url);
         return NextResponse.redirect(url);
       }
 
       // Verify token
       const payload = await verifyToken(token);
       if (!payload) {
-        const url = new URL('/unauthorized', request.url);
+        // Redirect to unauthorized with locale
+        const unauthorizedPath =
+          locale === routing.defaultLocale ? '/unauthorized' : `/${locale}/unauthorized`;
+        const url = new URL(unauthorizedPath, request.url);
         return NextResponse.redirect(url);
       }
     }
-
-    // Token valid or has permalink access, continue
   }
 
-  // 2. Handle i18n
+  // Let next-intl handle locale routing
   const response = intlMiddleware(request);
 
-  // 3. Add security headers
+  // Add security headers
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -87,5 +109,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/(nl|en|de|fr)/:path*', '/((?!_next|_vercel|.*\\..*).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|manifest.json|assets).*)'],
 };

@@ -2,6 +2,11 @@
   "common": {
     "search": "Search",
     "loading": "Loading...",
-    "error": "An error occurred"
+    "error": "An error occurred",
+    "unauthorized": {
+      "title": "Unauthorized",
+      "message": "You don't have access to this page. Please log in to continue.",
+      "backToHome": "Back to home"
+    }
   }
 }

@@ -36,6 +36,11 @@ export function slugToText(slug: string): string {
   );
 }
 
+export function extractIdFromSlug(slug: string): string {
+  // Slug format is "id/name" or just "id"
+  return slug.split('/')[0] || slug;
+}
+
 export function normalizeToArray<T>(value: T | T[] | undefined): T[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
