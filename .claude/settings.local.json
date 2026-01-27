@@ -20,7 +20,9 @@
       "Bash(npm run dev:*)",
       "Bash(taskkill //F //PID 11592)",
       "Bash(npx shadcn@latest add checkbox)",
-      "Bash(npx shadcn@latest:*)"
+      "Bash(npx shadcn@latest:*)",
+      "Bash(dir /B /S)",
+      "Bash(npx biome:*)"
     ]
   }
 }

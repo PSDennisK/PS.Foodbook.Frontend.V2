@@ -1,4 +1,3 @@
-
 function getEnvVar(key: string, defaultValue?: string): string {
   // Check if we're in browser/client context
   // In Edge Runtime and Node.js, window is undefined

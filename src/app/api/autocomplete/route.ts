@@ -8,6 +8,7 @@ export async function GET(request: Request) {
 
   const keyword = searchParams.get('q') ?? '';
   const localeParam = searchParams.get('locale') ?? 'nl';
+  const securityToken = searchParams.get('securityToken') ?? undefined;
   const locale = localeParam as Culture;
 
   if (!keyword) {
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const suggestions = await productService.autocomplete(keyword, locale);
+    const suggestions = await productService.autocomplete(keyword, locale, securityToken);
     return NextResponse.json({ suggestions });
   } catch (error) {
     console.error('Autocomplete API error:', error);

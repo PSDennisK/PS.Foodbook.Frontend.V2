@@ -1,6 +1,6 @@
 'use client';
-import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

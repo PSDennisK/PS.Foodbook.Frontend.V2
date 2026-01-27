@@ -9,10 +9,14 @@ import { Search, X } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
-export function SearchBar() {
+interface SearchBarProps {
+  securityToken?: string;
+}
+
+export function SearchBar({ securityToken }: SearchBarProps) {
   const locale = useLocale() as Culture;
   const { keyword: storeKeyword, setKeyword: setStoreKeyword } = useFilterStore();
-  const { keyword, setKeyword, suggestions, isLoading } = useAutocomplete({ locale });
+  const { keyword, setKeyword, suggestions, isLoading } = useAutocomplete({ locale, securityToken });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -109,9 +113,9 @@ export function SearchBar() {
           {isLoading ? (
             <div className="px-4 py-3 text-sm text-muted-foreground">Laden...</div>
           ) : (
-            suggestions.map((suggestion, index) => (
+            suggestions.map((suggestion) => (
               <button
-                key={`${suggestion}-${index}`}
+                key={suggestion}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
                 className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm"

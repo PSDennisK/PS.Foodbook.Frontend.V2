@@ -25,6 +25,7 @@ export interface SearchParams {
   pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  securityToken?: string;
 }
 
 export interface SearchProduct {

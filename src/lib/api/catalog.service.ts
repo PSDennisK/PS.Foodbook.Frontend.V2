@@ -6,8 +6,10 @@ const BASE_URL = env.api.foodbook;
 
 export const catalogService = {
   async getTheme(guid: string): Promise<CatalogTheme | null> {
-    const url = `${BASE_URL}/v2/DigitalCatalog/GetTheme/${guid}`;
+    const url = `${BASE_URL}/Theme/DigitalCatelog/${guid}`;
     const result = await apiFetch<unknown>(url);
+
+    console.log('getTheme result', result);
 
     if (!result.success) {
       return null;

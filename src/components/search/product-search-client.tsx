@@ -1,4 +1,5 @@
 'use client';
+
 import { useFilterStore } from '@/stores/filter.store';
 import type { Filter, SearchResults } from '@/types/filter';
 import { useQuery } from '@tanstack/react-query';
@@ -10,13 +11,14 @@ import { SearchBar } from './search-bar';
 
 interface ProductSearchClientProps {
   initialFilters: Filter[];
+  securityToken?: string;
 }
 
-export function ProductSearchClient({ initialFilters }: ProductSearchClientProps) {
+export function ProductSearchClient({ initialFilters, securityToken }: ProductSearchClientProps) {
   const { keyword, filters, pageIndex, pageSize } = useFilterStore();
 
   const { data, isLoading, error } = useQuery<SearchResults>({
-    queryKey: ['products', 'search', keyword, filters, pageIndex, pageSize],
+    queryKey: ['products', 'search', keyword, filters, pageIndex, pageSize, securityToken],
     queryFn: async () => {
       const response = await fetch('/api/search', {
         method: 'POST',
@@ -28,6 +30,7 @@ export function ProductSearchClient({ initialFilters }: ProductSearchClientProps
           filters: Object.keys(filters).length > 0 ? filters : undefined,
           page: pageIndex,
           pageSize,
+          securityToken,
         }),
       });
 
@@ -51,7 +54,7 @@ export function ProductSearchClient({ initialFilters }: ProductSearchClientProps
 
       {/* Main Content */}
       <main className="lg:col-span-3">
-        <SearchBar />
+        <SearchBar securityToken={securityToken} />
 
         {/* Results Info */}
         {data?.pagination && !isLoading && (

@@ -29,6 +29,27 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Convert old token-based catalog URLs to GUID URLs
+  // Pattern: /digitalcatalog/{token}/{abbr} -> /digitalcatalog/{guid}
+  const catalogMatch = pathname.match(/\/digitalcatalog\/(\d+)\/([^/]+)/);
+  if (catalogMatch?.[1] && catalogMatch[2]) {
+    const token = catalogMatch[1];
+    const abbr = catalogMatch[2];
+
+    // Import catalogService dynamically to avoid circular dependencies
+    const { catalogService } = await import('./src/lib/api/catalog.service');
+    const guid = await catalogService.getGuid(token, abbr);
+
+    if (guid) {
+      // Build new path with GUID
+      const newPath = pathname.replace(/\/digitalcatalog\/\d+\/[^/]+/, `/digitalcatalog/${guid}`);
+      const url = new URL(newPath, request.url);
+      // Preserve query parameters
+      url.search = request.nextUrl.search;
+      return NextResponse.redirect(url, 301); // Permanent redirect
+    }
+  }
+
   // Check if route needs protection (before intl middleware)
   if (isProtectedRoute(pathname)) {
     // Check for permalink parameters

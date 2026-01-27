@@ -9,6 +9,7 @@ interface UseAutocompleteOptions {
   locale: Culture;
   minLength?: number;
   debounceMs?: number;
+  securityToken?: string;
 }
 
 type AutocompleteResponse =
@@ -22,18 +23,23 @@ export function useAutocomplete({
   locale,
   minLength = 3,
   debounceMs = 300,
+  securityToken,
 }: UseAutocompleteOptions) {
   const [keyword, setKeyword] = useState('');
   const debouncedKeyword = useDebouncedValue(keyword, debounceMs);
 
   const { data: suggestions = [], isLoading } = useQuery({
-    queryKey: ['autocomplete', debouncedKeyword, locale],
+    queryKey: ['autocomplete', debouncedKeyword, locale, securityToken],
     queryFn: async () => {
       const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(debouncedKeyword)}&locale=${locale}`,
+        `/api/autocomplete?q=${encodeURIComponent(
+          debouncedKeyword,
+        )}&locale=${locale}${
+          securityToken ? `&securityToken=${encodeURIComponent(securityToken)}` : ''
+        }`,
       );
 
-            console.log('autocomplete response', response);
+      console.log('autocomplete response', response);
 
       if (!response.ok) {
         return [];
@@ -49,7 +55,7 @@ export function useAutocomplete({
 
       const productNames =
         rawSuggestions.products?.map((product) =>
-          product.brand ? `${product.name} – ${product.brand}` : product.name,
+          product.brand ? `${product.name} – ${product.brand}` : product.name
         ) ?? [];
 
       const brandNames = rawSuggestions.brands?.map((brand) => brand.name) ?? [];

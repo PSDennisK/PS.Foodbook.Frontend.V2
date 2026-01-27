@@ -99,8 +99,6 @@ export const productService = {
   },
 
   async search(params: SearchParams): Promise<SearchResults | null> {
-    const url = `${BASE_URL}/v2/Search/SearchResults`;
-
     const payload = {
       keyword: params.keyword ?? '',
       filters: [],
@@ -108,8 +106,23 @@ export const productService = {
       pageSize: params.pageSize ?? 21,
     };
 
+    // Als er een securityToken is, zoeken we binnen een digitale catalogus
+    const isCatalogSearch = Boolean(params.securityToken);
+
+    console.log('isCatalogSearch', isCatalogSearch);
+    console.log('securityToken', params.securityToken);
+
+    const url = isCatalogSearch
+      ? `${BASE_URL}/v2/Search/DC/SearchResults?language=nl`
+      : `${BASE_URL}/v2/Search/SearchResults`;
+
     const result = await apiFetch<BackendSearchResults>(url, {
       method: 'POST',
+      headers: isCatalogSearch
+        ? {
+            securitytoken: params.securityToken as string,
+          }
+        : undefined,
       body: JSON.stringify(payload),
     });
 
@@ -141,9 +154,30 @@ export const productService = {
     };
   },
 
-  async autocomplete(keyword: string, locale: Culture): Promise<string[]> {
-    const url = `${BASE_URL}/v2/Search/${locale}/AutoComplete/${encodeURIComponent(keyword)}`;
-    const result = await apiFetch<string[]>(url);
+  async autocomplete(
+    keyword: string,
+    locale: Culture,
+    securityToken?: string,
+  ): Promise<string[]> {
+    const isCatalogSearch = Boolean(securityToken);
+
+    const url = isCatalogSearch
+      ? `${BASE_URL}/v2/Search/DC/${locale}/AutoComplete/${encodeURIComponent(keyword)}`
+      : `${BASE_URL}/v2/Search/${locale}/AutoComplete/${encodeURIComponent(keyword)}`;
+
+      console.log('autocomplete url', url);
+      console.log('isCatalogSearch', isCatalogSearch);
+      console.log('securityToken', securityToken);
+
+    const result = await apiFetch<string[]>(url, {
+      headers: isCatalogSearch
+        ? {
+            securitytoken: securityToken as string,
+          }
+        : undefined,
+    });
+
+    console.log('autocomplete result', result);
 
     return result.success ? result.data : [];
   },
