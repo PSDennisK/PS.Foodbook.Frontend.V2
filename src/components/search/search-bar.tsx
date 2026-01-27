@@ -16,7 +16,10 @@ interface SearchBarProps {
 export function SearchBar({ securityToken }: SearchBarProps) {
   const locale = useLocale() as Culture;
   const { keyword: storeKeyword, setKeyword: setStoreKeyword } = useFilterStore();
-  const { keyword, setKeyword, suggestions, isLoading } = useAutocomplete({ locale, securityToken });
+  const { keyword, setKeyword, suggestions, isLoading } = useAutocomplete({
+    locale,
+    securityToken,
+  });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);

@@ -154,20 +154,16 @@ export const productService = {
     };
   },
 
-  async autocomplete(
-    keyword: string,
-    locale: Culture,
-    securityToken?: string,
-  ): Promise<string[]> {
+  async autocomplete(keyword: string, locale: Culture, securityToken?: string): Promise<string[]> {
     const isCatalogSearch = Boolean(securityToken);
 
     const url = isCatalogSearch
       ? `${BASE_URL}/v2/Search/DC/${locale}/AutoComplete/${encodeURIComponent(keyword)}`
       : `${BASE_URL}/v2/Search/${locale}/AutoComplete/${encodeURIComponent(keyword)}`;
 
-      console.log('autocomplete url', url);
-      console.log('isCatalogSearch', isCatalogSearch);
-      console.log('securityToken', securityToken);
+    console.log('autocomplete url', url);
+    console.log('isCatalogSearch', isCatalogSearch);
+    console.log('securityToken', securityToken);
 
     const result = await apiFetch<string[]>(url, {
       headers: isCatalogSearch

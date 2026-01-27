@@ -32,11 +32,9 @@ export function useAutocomplete({
     queryKey: ['autocomplete', debouncedKeyword, locale, securityToken],
     queryFn: async () => {
       const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(
-          debouncedKeyword,
-        )}&locale=${locale}${
+        `/api/autocomplete?q=${encodeURIComponent(debouncedKeyword)}&locale=${locale}${
           securityToken ? `&securityToken=${encodeURIComponent(securityToken)}` : ''
-        }`,
+        }`
       );
 
       console.log('autocomplete response', response);
