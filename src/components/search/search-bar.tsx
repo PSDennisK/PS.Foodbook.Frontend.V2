@@ -1,13 +1,13 @@
 'use client';
+import { Search, X } from 'lucide-react';
+import { useLocale } from 'next-intl';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAutocomplete } from '@/hooks/use-autocomplete';
 import { useFilterStore } from '@/stores/filter.store';
 import type { Culture } from '@/types/enums';
-import { Search, X } from 'lucide-react';
-import { useLocale } from 'next-intl';
-import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface SearchBarProps {
   securityToken?: string;
@@ -154,16 +154,16 @@ export function SearchBar({ securityToken }: SearchBarProps) {
               Laden...
             </div>
           ) : (
-            uniqueSuggestions.map((suggestion, index) => (
+            uniqueSuggestions.map((suggestion) => (
               <button
-                key={`${suggestion}-${index}`}
+                key={suggestion}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
                 className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm focus:bg-accent focus:outline-none"
                 // biome-ignore lint/a11y/useSemanticElements: Option role required for combobox listbox pattern
                 role="option"
                 aria-selected="false"
-                id={`suggestion-${index}`}
+                id={`suggestion-${suggestion}`}
               >
                 {suggestion}
               </button>
