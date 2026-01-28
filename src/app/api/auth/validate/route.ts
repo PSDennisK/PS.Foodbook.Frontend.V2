@@ -1,13 +1,13 @@
-import { verifyToken } from '@/lib/auth/jwt';
 import { type NextRequest, NextResponse } from 'next/server';
+
+import { ValidationError, validateRequestBody, validateTokenSchema } from '@/lib/api/validation';
+import { verifyToken } from '@/lib/auth/jwt';
 
 export async function POST(request: NextRequest) {
   try {
-    const { token } = await request.json();
-
-    if (!token) {
-      return NextResponse.json({ isValid: false, error: 'No token provided' }, { status: 400 });
-    }
+    // Parse and validate request body
+    const rawBody = await request.json();
+    const { token } = validateRequestBody(validateTokenSchema, rawBody);
 
     const payload = await verifyToken(token);
 
@@ -20,6 +20,18 @@ export async function POST(request: NextRequest) {
       payload,
     });
   } catch (error) {
+    // Handle validation errors
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        {
+          isValid: false,
+          error: error.message,
+          details: error.errors,
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({ isValid: false, error: 'Validation failed' }, { status: 500 });
   }
 }

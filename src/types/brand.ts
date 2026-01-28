@@ -16,3 +16,17 @@ export const BrandSchema = z.object({
 });
 
 export type Brand = z.infer<typeof BrandSchema>;
+
+// Raw BrandInfo response from /v2/Brand/BrandInfo/{brandId}
+export const BrandInfoSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  website: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  producerId: z.number().optional(),
+  producerName: z.string().optional(),
+  image: z.string().optional(),
+});
+
+export type BrandInfo = z.infer<typeof BrandInfoSchema>;

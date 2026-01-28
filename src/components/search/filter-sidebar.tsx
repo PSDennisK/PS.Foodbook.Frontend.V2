@@ -28,6 +28,15 @@ export function FilterSidebar({ filters }: FilterSidebarProps) {
       if (!filter.key) {
         return false;
       }
+
+      // Verberg filters zonder opties (bijv. ProductGroepen zonder waarden)
+      if (
+        (filter.type === FilterType.CHECKBOX || filter.type === FilterType.SELECT) &&
+        (!filter.options || filter.options.length === 0)
+      ) {
+        return false;
+      }
+
       if (seen.has(filter.key)) {
         return false;
       }

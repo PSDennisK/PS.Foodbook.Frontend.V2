@@ -17,6 +17,7 @@ export const ProductSummarySchema = z.object({
   name: LocalizedStringSchema,
   ean: z.string(),
   brandname: z.string(),
+  brandid: z.string().optional(),
   packshot: z.string().optional(),
   publiclyvisible: z.string(),
   lastupdatedon: z.coerce.date(),

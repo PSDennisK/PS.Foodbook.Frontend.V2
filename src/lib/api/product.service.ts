@@ -154,9 +154,6 @@ export const productService = {
     // Als er een securityToken is, zoeken we binnen een digitale catalogus
     const isCatalogSearch = Boolean(params.securityToken);
 
-    console.log('isCatalogSearch', isCatalogSearch);
-    console.log('securityToken', params.securityToken);
-
     const url = isCatalogSearch
       ? `${BASE_URL}/v2/Search/DC/SearchResults?language=nl`
       : `${BASE_URL}/v2/Search/SearchResults`;
@@ -181,10 +178,6 @@ export const productService = {
     const pageSize = params.pageSize ?? 21;
     const total = backend.results;
     const totalPages = pageSize > 0 ? Math.ceil(total / pageSize) : 0;
-
-    console.log('search products', backend.products);
-    console.log('search filters', backend.filters);
-    console.log('search voedingswaardes', backend.voedingswaardes);
 
     // Backend.filters is een platte array met { key, id, results }
     // We moeten deze groeperen per key en converteren naar Filter structuur
@@ -275,7 +268,6 @@ export const productService = {
     }
 
     const searchResultFilters = Array.from(filterMap.values());
-    console.log('mapped filters', searchResultFilters);
 
     return {
       products: backend.products,
@@ -296,10 +288,6 @@ export const productService = {
       ? `${BASE_URL}/v2/Search/DC/${locale}/AutoComplete/${encodeURIComponent(keyword)}`
       : `${BASE_URL}/v2/Search/${locale}/AutoComplete/${encodeURIComponent(keyword)}`;
 
-    console.log('autocomplete url', url);
-    console.log('isCatalogSearch', isCatalogSearch);
-    console.log('securityToken', securityToken);
-
     const result = await apiFetch<string[]>(url, {
       headers: isCatalogSearch
         ? {
@@ -308,16 +296,12 @@ export const productService = {
         : undefined,
     });
 
-    console.log('autocomplete result', result);
-
     return result.success ? result.data : [];
   },
 
   async getFilters(): Promise<Filter[]> {
     const url = `${BASE_URL}/v2/Filter/List`;
     const result = await apiFetch<BackendFilter[]>(url);
-
-    console.log('getFilters result', result);
 
     if (!result.success) {
       return [];

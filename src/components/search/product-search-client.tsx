@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
+import { ComponentErrorBoundary } from '@/components/ui/error-boundary';
 import { useFilterStore } from '@/stores/filter.store';
 import { FilterType } from '@/types/enums';
 import type { Filter, FilterOption, SearchResults } from '@/types/filter';
@@ -18,7 +19,7 @@ interface ProductSearchClientProps {
   securityToken?: string;
 }
 
-export function ProductSearchClient({ initialFilters, securityToken }: ProductSearchClientProps) {
+function ProductSearchClientInner({ initialFilters, securityToken }: ProductSearchClientProps) {
   const { keyword, filters, pageIndex, pageSize } = useFilterStore();
   const t = useTranslations('common');
 
@@ -28,21 +29,25 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
   const { data, isLoading, error } = useQuery<SearchResults>({
     queryKey: ['products', 'search', keyword, filters, pageIndex, pageSize, securityToken],
     queryFn: async () => {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add security token to Authorization header instead of request body
+      if (securityToken) {
+        headers.Authorization = `Bearer ${securityToken}`;
+      }
+
       const response = await fetch('/api/search', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           keyword: keyword || undefined,
           filters: Object.keys(filters).length > 0 ? filters : undefined,
           page: pageIndex,
           pageSize,
-          securityToken,
         }),
       });
-
-      console.log('response', response);
 
       if (!response.ok) {
         throw new Error('Search request failed');
@@ -59,23 +64,20 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
   const displayFilters = useMemo(() => {
     // Als er geen search query is of geen filters in SearchResult
     if (!hasSearchQuery || !data?.filters || data.filters.length === 0) {
-      // Toon Range filters (zoals voedingswaardes) altijd, ook zonder search query
-      const rangeFilters = initialFilters.filter((f) => f.type === FilterType.RANGE);
-      const otherFilters = initialFilters.filter((f) => f.type !== FilterType.RANGE);
+      // Standaard: toon alleen niet-Range filters uit initialFilters
+      const baseFilters = initialFilters.filter((f) => f.type !== FilterType.RANGE);
 
-      // Als er wel Range filters zijn in SearchResult, gebruik die (met juiste min/max)
+      // Als er toch Range filters in SearchResult zitten, voeg die toe
       if (data?.filters && data.filters.length > 0) {
         const searchResultRangeFilters = data.filters.filter((f) => f.type === FilterType.RANGE);
         if (searchResultRangeFilters.length > 0) {
-          // Merge: gebruik SearchResult Range filters als die er zijn, anders initialFilters Range filters
-          return [...searchResultRangeFilters, ...otherFilters];
+          return [...searchResultRangeFilters, ...baseFilters];
         }
       }
 
-      return initialFilters;
+      // Geen Range filters uit SearchResult -> geen Voedingswaarden slider tonen
+      return baseFilters;
     }
-
-    console.log('displayFilters - data.filters:', data.filters);
 
     // Maak een Map van SearchResult filters voor snelle lookup op key
     const searchResultFiltersMap = new Map<string, Filter>();
@@ -147,8 +149,6 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
               count,
             };
           });
-
-        console.log('filteredOptions for filter', filter.key, filteredOptions);
 
         return {
           ...filter,
@@ -232,5 +232,17 @@ export function ProductSearchClient({ initialFilters, securityToken }: ProductSe
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * ProductSearchClient with Error Boundary
+ * Catches and handles errors gracefully without crashing the entire page
+ */
+export function ProductSearchClient(props: ProductSearchClientProps) {
+  return (
+    <ComponentErrorBoundary componentName="Producten zoeken">
+      <ProductSearchClientInner {...props} />
+    </ComponentErrorBoundary>
   );
 }

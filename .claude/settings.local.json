@@ -22,7 +22,8 @@
       "Bash(npx shadcn@latest add checkbox)",
       "Bash(npx shadcn@latest:*)",
       "Bash(dir /B /S)",
-      "Bash(npx biome:*)"
+      "Bash(npx biome:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

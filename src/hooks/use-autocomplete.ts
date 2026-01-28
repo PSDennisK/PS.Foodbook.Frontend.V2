@@ -31,19 +31,29 @@ export function useAutocomplete({
   const { data: suggestions = [], isLoading } = useQuery({
     queryKey: ['autocomplete', debouncedKeyword, locale, securityToken],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/autocomplete?q=${encodeURIComponent(debouncedKeyword)}&locale=${locale}${
-          securityToken ? `&securityToken=${encodeURIComponent(securityToken)}` : ''
-        }`
-      );
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
 
-      console.log('autocomplete response', response);
+      // Add security token to Authorization header instead of URL
+      if (securityToken) {
+        headers.Authorization = `Bearer ${securityToken}`;
+      }
+
+      const response = await fetch(
+        `/api/autocomplete?q=${encodeURIComponent(debouncedKeyword)}&locale=${locale}`,
+        {
+          headers,
+        }
+      );
 
       if (!response.ok) {
         return [];
       }
 
-      const json = (await response.json()) as { suggestions: AutocompleteResponse };
+      const json = (await response.json()) as {
+        suggestions: AutocompleteResponse;
+      };
       const rawSuggestions = json.suggestions;
 
       // Backend may return a flat string array or a structured object

@@ -7,7 +7,7 @@ import { useFilterStore } from '@/stores/filter.store';
 import type { Culture } from '@/types/enums';
 import { Search, X } from 'lucide-react';
 import { useLocale } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface SearchBarProps {
   securityToken?: string;
@@ -75,6 +75,17 @@ export function SearchBar({ securityToken }: SearchBarProps) {
     inputRef.current?.focus();
   };
 
+  const uniqueSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    return suggestions.filter((item) => {
+      if (seen.has(item)) {
+        return false;
+      }
+      seen.add(item);
+      return true;
+    });
+  }, [suggestions]);
+
   return (
     <div className="relative mb-6">
       <div className="relative">
@@ -122,7 +133,7 @@ export function SearchBar({ securityToken }: SearchBarProps) {
         </div>
       </div>
 
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && uniqueSuggestions.length > 0 && (
         // biome-ignore lint/a11y/useFocusableInteractive: Combobox pattern requires listbox role on non-focusable container
         // biome-ignore lint/a11y/useSemanticElements: Combobox pattern requires custom listbox implementation
         <div
@@ -143,16 +154,16 @@ export function SearchBar({ securityToken }: SearchBarProps) {
               Laden...
             </div>
           ) : (
-            suggestions.map((suggestion) => (
+            uniqueSuggestions.map((suggestion, index) => (
               <button
-                key={suggestion}
+                key={`${suggestion}-${index}`}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
                 className="w-full px-4 py-3 text-left hover:bg-accent transition-colors text-sm focus:bg-accent focus:outline-none"
                 // biome-ignore lint/a11y/useSemanticElements: Option role required for combobox listbox pattern
                 role="option"
                 aria-selected="false"
-                id={`suggestion-${suggestion}`}
+                id={`suggestion-${index}`}
               >
                 {suggestion}
               </button>

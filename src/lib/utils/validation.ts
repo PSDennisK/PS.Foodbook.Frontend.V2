@@ -1,3 +1,5 @@
+import DOMPurify from 'isomorphic-dompurify';
+
 export function validateEan(ean: string): boolean {
   // EAN-13 or EAN-8 validation
   if (!/^\d{8}$|^\d{13}$/.test(ean)) {
@@ -23,8 +25,27 @@ export function validateGuid(guid: string): boolean {
 }
 
 export function sanitizeHtml(html: string): string {
-  // Basic sanitization - in production use DOMPurify
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '');
+  // Use DOMPurify for robust HTML sanitization
+  // Prevents XSS attacks by removing malicious scripts and event handlers
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'p',
+      'br',
+      'strong',
+      'em',
+      'u',
+      'a',
+      'ul',
+      'ol',
+      'li',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+    ],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    ALLOW_DATA_ATTR: false,
+  });
 }

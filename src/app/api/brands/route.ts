@@ -6,8 +6,6 @@ export async function GET() {
   try {
     const brands = await brandService.getAllBrands();
 
-    console.log('brands', brands);
-
     return NextResponse.json(brands);
   } catch (error) {
     console.error('Brands API error:', error);

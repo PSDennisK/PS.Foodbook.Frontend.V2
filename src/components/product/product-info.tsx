@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
 import { formatDate } from '@/lib/utils/date';
 import { getTranslation } from '@/lib/utils/translation';
-import { buildProductSheetUrl } from '@/lib/utils/url';
+import { buildBrandUrl, buildProductSheetUrl } from '@/lib/utils/url';
 import type { Culture } from '@/types/enums';
 import type { Product } from '@/types/product';
 
@@ -16,6 +16,7 @@ export function ProductInfo({ product, locale }: ProductInfoProps) {
   const { summary } = product.product;
   const name = getTranslation(summary.name, locale);
   const brandName = summary.brandname;
+  const brandId = summary.brandid;
   const ean = summary.ean;
   const lastUpdated = summary.lastupdatedon;
   const isPublic = summary.publiclyvisible === 'true' || summary.publiclyvisible === '1';
@@ -30,7 +31,17 @@ export function ProductInfo({ product, locale }: ProductInfoProps) {
             {isPublic ? 'Publiek' : 'Niet publiek'}
           </Badge>
         </div>
-        <p className="text-xl text-muted-foreground">{brandName}</p>
+        {brandName &&
+          (brandId ? (
+            <Link
+              href={buildBrandUrl(brandId, brandName, locale)}
+              className="text-xl text-primary hover:underline"
+            >
+              {brandName}
+            </Link>
+          ) : (
+            <p className="text-xl text-muted-foreground">{brandName}</p>
+          ))}
       </div>
 
       {/* Product Details */}

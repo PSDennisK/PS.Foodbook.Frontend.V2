@@ -13,8 +13,6 @@ export default async function CatalogLayout({ children, params }: CatalogLayoutP
   const { guid } = await params;
   const theme = await catalogService.getTheme(guid);
 
-  console.log('theme', theme);
-
   // Verrijk theme met base64 logo/banner indien alleen bestandsnamen zijn aangeleverd
   let enrichedTheme: CatalogTheme | null = theme;
   if (theme) {

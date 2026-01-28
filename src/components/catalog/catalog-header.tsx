@@ -12,8 +12,6 @@ export function CatalogHeader({ theme }: CatalogHeaderProps) {
   const hasBanner = theme.bannerImage;
   const hasTitle = theme.title;
 
-  console.log('theme', theme);
-
   return (
     <header
       className="border-b"

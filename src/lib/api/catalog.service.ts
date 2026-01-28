@@ -9,8 +9,6 @@ export const catalogService = {
     const url = `${BASE_URL}/Theme/DigitalCatelog/${guid}`;
     const result = await apiFetch<unknown>(url);
 
-    console.log('getTheme result', result);
-
     if (!result.success) {
       return null;
     }
