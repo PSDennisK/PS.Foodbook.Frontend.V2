@@ -271,3 +271,125 @@ All pages are under `src/app/[locale]/` for automatic locale handling:
 
 - `/api/health` - Health check endpoint returning status, timestamp, environment, version
 - `/api/log` - Client-side logging endpoint (POST)
+
+## Docker & Deployment
+
+### Docker Commands
+
+```bash
+# Build production image
+docker build -t ps-foodbook-app:latest .
+
+# Run with docker-compose (recommended)
+docker-compose up        # Start in foreground
+docker-compose up -d     # Start in background (detached)
+docker-compose down      # Stop containers
+docker-compose restart   # Restart containers
+
+# Run container directly
+docker run -p 3000:3000 --env-file .env.production ps-foodbook-app:latest
+
+# View container logs
+docker logs ps-foodbook-app         # All logs
+docker logs -f ps-foodbook-app      # Follow logs
+docker logs --tail 100 ps-foodbook-app  # Last 100 lines
+
+# Check container health
+docker ps                           # View running containers
+docker inspect ps-foodbook-app      # Detailed container info
+curl http://localhost:3000/api/health  # Test health endpoint
+
+# Container management
+docker stats ps-foodbook-app        # Resource usage
+docker exec -it ps-foodbook-app sh  # Access container shell
+```
+
+### CI/CD Pipelines
+
+The project uses GitHub Actions for automated CI/CD:
+
+**CI Pipeline** (`.github/workflows/ci.yml`):
+- Triggers on all PRs and pushes
+- Runs type checking and linting
+- Executes unit tests with coverage
+- Runs E2E tests with Playwright
+- Verifies production build
+
+**Deploy Pipeline** (`.github/workflows/deploy.yml`):
+- Triggers on push to master branch
+- Runs full CI test suite
+- Builds Docker image with Git SHA tag
+- Pushes to container registry
+- Deploys to production
+
+### Environment Configuration
+
+Three environment configurations are available:
+
+1. **Development** - `.env.local`
+   - Hot reload enabled
+   - Debug logging
+   - Short/no caching
+   - Local API endpoint
+
+2. **Staging** - `.env.staging.example`
+   - 60s cache revalidation
+   - Debug logging enabled
+   - Staging API endpoint
+   - Staging monitoring
+
+3. **Production** - `.env.production.example`
+   - 300s cache revalidation
+   - Info logging only
+   - Production API endpoint
+   - Full monitoring enabled
+
+### Monitoring & Operations
+
+**Health Monitoring:**
+- Container health checks run every 30 seconds
+- Application health endpoint: `/api/health`
+- Automatic restart on failure (3 retries)
+
+**Error Tracking:**
+- Sentry for error monitoring (configured via `NEXT_PUBLIC_SENTRY_DSN`)
+- Client and server-side error capture
+- Performance monitoring and transaction tracking
+
+**Logging:**
+- Client logs sent to `/api/log` endpoint
+- Server logs to stdout (captured by Docker)
+- Log rotation: 10MB max per file, 3 files retained
+
+**Useful Monitoring Commands:**
+```bash
+# Check application health
+curl http://localhost:3000/api/health
+
+# Monitor resource usage
+docker stats ps-foodbook-app
+
+# View recent logs
+docker logs --since 30m ps-foodbook-app
+
+# Count errors in logs
+docker logs ps-foodbook-app | grep ERROR | wc -l
+
+# Export logs for analysis
+docker logs ps-foodbook-app > app-logs-$(date +%Y%m%d).log
+```
+
+## Documentation Reference
+
+The project includes comprehensive documentation:
+
+- **README.md** - Project overview, setup, and getting started
+- **RUNBOOK.md** - Operations procedures and maintenance tasks
+- **API_DOCUMENTATION.md** - Internal API routes reference
+- **DEPLOYMENT_GUIDE.md** - Step-by-step deployment instructions
+- **SECURITY.md** - Security best practices and checklist
+- **MONITORING_GUIDE.md** - Monitoring setup and troubleshooting
+- **HANDOVER.md** - Team handover and training materials
+- **FASE_6_SUMMARY.md** - UI/UX polish phase summary
+- **FASE_7_TESTING_SUMMARY.md** - Testing and QA phase summary
+- **FASE_8_DEPLOYMENT_SUMMARY.md** - Deployment phase summary

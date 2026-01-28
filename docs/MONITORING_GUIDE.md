@@ -1,573 +1,139 @@
-# Monitoring Guide - PS Foodbook App
+# Monitoring & Observability Guide
 
-## Overview
-
-This guide provides comprehensive instructions for monitoring, observability, and alerting for the PS Foodbook application. Effective monitoring enables proactive issue detection and rapid incident response.
-
-**Monitoring Philosophy**: Observe, measure, alert, improve.
+This guide covers monitoring, logging, error tracking, and observability for the PS Foodbook application.
 
 ## Table of Contents
 
-1. [Monitoring Architecture](#monitoring-architecture)
-2. [Health Checks](#health-checks)
-3. [Metrics and KPIs](#metrics-and-kpis)
-4. [Logging](#logging)
-5. [Error Tracking (Sentry)](#error-tracking-sentry)
-6. [Performance Monitoring](#performance-monitoring)
-7. [Alerting](#alerting)
-8. [Dashboards](#dashboards)
-9. [SLIs, SLOs, and SLAs](#slis-slos-and-slas)
-10. [Troubleshooting with Monitoring](#troubleshooting-with-monitoring)
+- [Overview](#overview)
+- [Health Checks](#health-checks)
+- [Error Tracking (Sentry)](#error-tracking-sentry)
+- [Application Logging](#application-logging)
+- [Performance Monitoring](#performance-monitoring)
+- [Metrics & Dashboards](#metrics--dashboards)
+- [Alerts & Notifications](#alerts--notifications)
+- [Troubleshooting](#troubleshooting)
 
----
+## Overview
 
-## Monitoring Architecture
+The PS Foodbook application uses a multi-layered monitoring approach:
 
-### Monitoring Stack
-
-```
-Application
-    ↓
-Health Checks → Docker Health Check
-    ↓
-Logs → stdout/stderr → Docker Logs
-    ↓
-Errors → Sentry (Error Tracking)
-    ↓
-Metrics → Docker Stats / Prometheus (future)
-    ↓
-Alerts → Email / Slack / PagerDuty
-    ↓
-Dashboards → Grafana / Sentry
-```
-
-### Components
-
-1. **Health Checks**: `/api/health` endpoint
-2. **Application Logs**: stdout/stderr via Docker
-3. **Client Logs**: `/api/log` endpoint → Sentry
-4. **Error Tracking**: Sentry for exceptions and errors
-5. **Container Metrics**: Docker stats (CPU, memory, network)
-6. **APM**: Application Performance Monitoring via Sentry
-7. **Analytics**: Google Tag Manager + Google Analytics (optional)
-
-### Monitoring Layers
-
-| Layer | Tool | Metrics |
-|-------|------|---------|
-| **Infrastructure** | Docker, System | CPU, Memory, Disk, Network |
-| **Application** | Sentry, Logs | Errors, Performance, Traces |
-| **User Experience** | Sentry, GA | Page load time, User flow |
-| **Business** | Custom | Searches, Product views, Conversions |
-
----
+- **Health Checks**: Container and application health monitoring
+- **Error Tracking**: Sentry for error capture and analysis
+- **Application Logging**: Structured logging to console/files
+- **Performance Monitoring**: Sentry performance insights
+- **Infrastructure Metrics**: Docker/container metrics
 
 ## Health Checks
 
 ### Application Health Endpoint
 
-**Endpoint**: `GET /api/health`
+The application exposes a health check endpoint at `/api/health`:
 
-**Purpose**: Verify application is running and responsive
+```bash
+GET http://localhost:3000/api/health
+```
 
-**Location**: `src/app/api/health/route.ts`
-
-#### Response Format
-
+**Response:**
 ```json
 {
-  "status": "ok",
-  "timestamp": "2026-01-27T12:00:00.000Z",
+  "status": "healthy",
+  "timestamp": "2024-01-27T12:00:00.000Z",
   "environment": "production",
   "version": "1.0.0"
 }
 ```
 
-**Response Fields**:
-- `status`: Health status ("ok" = healthy)
-- `timestamp`: Current server time (ISO 8601)
-- `environment`: Environment name (development, staging, production)
-- `version`: Application version from package.json
+**Status Codes:**
+- `200 OK` - Application is healthy
+- `503 Service Unavailable` - Application is unhealthy
 
-#### Health Check Configuration
+### Docker Health Checks
 
-**Docker Compose** (`docker-compose.yml`):
+Docker Compose automatically monitors application health:
 
 ```yaml
 healthcheck:
   test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-  interval: 30s      # Check every 30 seconds
-  timeout: 10s       # Timeout after 10 seconds
-  retries: 3         # 3 failures = unhealthy
-  start_period: 40s  # Wait 40s before first check
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
 ```
 
-#### Manual Health Check
+**Health Check Behavior:**
+- Checks every 30 seconds
+- 10 second timeout per check
+- 3 retries before marking unhealthy
+- 40 second grace period on startup
 
+**Monitoring Health Status:**
 ```bash
-# Check health endpoint
-curl -s http://localhost:3000/api/health | jq
+# Check container health
+docker ps
 
-# Expected output:
-# {
-#   "status": "ok",
-#   "timestamp": "2026-01-27T12:00:00.000Z",
-#   "environment": "production",
-#   "version": "1.0.0"
-# }
+# View health check logs
+docker inspect ps-foodbook-app | grep -A 10 Health
 
-# Check Docker health status
-docker inspect --format='{{.State.Health.Status}}' ps-foodbook-app
-# Expected: healthy
-
-# View health check history
-docker inspect --format='{{json .State.Health}}' ps-foodbook-app | jq
+# Check health from command line
+docker exec ps-foodbook-app wget --spider http://localhost:3000/api/health
 ```
-
-### Automated Health Monitoring
-
-#### Script: `monitor-health.sh`
-
-```bash
-#!/bin/bash
-
-URL="${1:-http://localhost:3000}"
-INTERVAL="${2:-30}"
-
-echo "Monitoring health at $URL every ${INTERVAL}s"
-echo "Press Ctrl+C to stop"
-echo ""
-
-while true; do
-  RESPONSE=$(curl -s -w "\n%{http_code}" "$URL/api/health")
-  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-  BODY=$(echo "$RESPONSE" | sed '$d')
-
-  if [ "$HTTP_CODE" == "200" ]; then
-    STATUS=$(echo "$BODY" | jq -r '.status')
-    TIMESTAMP=$(echo "$BODY" | jq -r '.timestamp')
-    echo "✓ [$(date +%H:%M:%S)] Healthy - $STATUS at $TIMESTAMP"
-  else
-    echo "✗ [$(date +%H:%M:%S)] Unhealthy - HTTP $HTTP_CODE"
-  fi
-
-  sleep $INTERVAL
-done
-```
-
-Usage:
-```bash
-chmod +x monitor-health.sh
-./monitor-health.sh https://foodbook.psinfoodservice.com 60
-```
-
-### Health Check Alerts
-
-Configure alerts for health check failures:
-
-```bash
-# Using cron to check health every 5 minutes
-*/5 * * * * /opt/scripts/check-health.sh || /opt/scripts/send-alert.sh "Health check failed"
-```
-
----
-
-## Metrics and KPIs
-
-### Key Performance Indicators
-
-#### Application Metrics
-
-| Metric | Target | Warning | Critical |
-|--------|--------|---------|----------|
-| **Uptime** | 99.9% | 99.5% | < 99% |
-| **Response Time (P50)** | < 200ms | > 500ms | > 1s |
-| **Response Time (P95)** | < 500ms | > 1s | > 2s |
-| **Response Time (P99)** | < 1s | > 2s | > 5s |
-| **Error Rate** | < 0.1% | > 0.5% | > 1% |
-| **Apdex Score** | > 0.95 | < 0.90 | < 0.80 |
-
-#### Infrastructure Metrics
-
-| Metric | Target | Warning | Critical |
-|--------|--------|---------|----------|
-| **CPU Usage** | < 30% | > 60% | > 80% |
-| **Memory Usage** | < 1GB | > 1.5GB | > 2GB |
-| **Disk Usage** | < 50% | > 70% | > 85% |
-| **Network I/O** | < 10MB/s | > 50MB/s | > 100MB/s |
-
-#### Business Metrics
-
-| Metric | Description |
-|--------|-------------|
-| **Daily Active Users** | Unique users per day |
-| **Product Searches** | Number of searches per day |
-| **Product Views** | Product detail page views |
-| **Search Success Rate** | % of searches with results |
-| **Page Load Time** | Time to first meaningful paint |
-
-### Collecting Metrics
-
-#### Docker Stats
-
-Real-time container metrics:
-
-```bash
-# Real-time stats
-docker stats ps-foodbook-app
-
-# Output:
-# CONTAINER      CPU %    MEM USAGE / LIMIT   MEM %    NET I/O         BLOCK I/O
-# ps-foodbook    2.45%    256MiB / 2GiB       12.5%    1.2MB / 800kB   0B / 0B
-
-# One-time snapshot
-docker stats --no-stream ps-foodbook-app
-
-# JSON format for parsing
-docker stats --no-stream --format "{{json .}}" ps-foodbook-app | jq
-```
-
-#### Metrics Collection Script
-
-```bash
-#!/bin/bash
-# collect-metrics.sh
-
-CONTAINER="ps-foodbook-app"
-INTERVAL=60
-LOGFILE="/var/log/ps-foodbook-metrics.log"
-
-while true; do
-  TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-  # Collect Docker stats
-  STATS=$(docker stats --no-stream --format "{{.CPUPerc}},{{.MemUsage}},{{.NetIO}}" $CONTAINER)
-
-  # Parse stats
-  CPU=$(echo $STATS | cut -d',' -f1)
-  MEM=$(echo $STATS | cut -d',' -f2)
-  NET=$(echo $STATS | cut -d',' -f3)
-
-  # Log metrics
-  echo "$TIMESTAMP,$CPU,$MEM,$NET" >> $LOGFILE
-
-  sleep $INTERVAL
-done
-```
-
-#### Prometheus Export (Future Enhancement)
-
-For production-grade metrics:
-
-```yaml
-# docker-compose.yml
-services:
-  app:
-    # ... existing config
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
-    depends_on:
-      - prometheus
-```
-
----
-
-## Logging
-
-### Log Levels
-
-| Level | Use Case | Example |
-|-------|----------|---------|
-| **DEBUG** | Development debugging | Function entry/exit, variable values |
-| **INFO** | Normal operations | Server started, request completed |
-| **WARN** | Potential issues | Deprecated API used, slow query |
-| **ERROR** | Recoverable errors | API timeout, validation failed |
-| **FATAL** | Critical failures | Database connection lost |
-
-### Log Format
-
-**Structured JSON logging**:
-
-```json
-{
-  "timestamp": "2026-01-27T12:00:00.000Z",
-  "level": "INFO",
-  "message": "GET /api/search 200 15ms",
-  "context": {
-    "method": "GET",
-    "path": "/api/search",
-    "statusCode": 200,
-    "duration": 15,
-    "ip": "203.0.113.1"
-  }
-}
-```
-
-### Viewing Logs
-
-#### Docker Logs
-
-```bash
-# View all logs
-docker logs ps-foodbook-app
-
-# Follow logs (real-time)
-docker logs -f ps-foodbook-app
-
-# Last 100 lines
-docker logs --tail 100 ps-foodbook-app
-
-# With timestamps
-docker logs -t ps-foodbook-app
-
-# Since timestamp
-docker logs --since 2026-01-27T12:00:00 ps-foodbook-app
-
-# Last 30 minutes
-docker logs --since 30m ps-foodbook-app
-
-# Until timestamp
-docker logs --until 2026-01-27T13:00:00 ps-foodbook-app
-```
-
-#### Docker Compose Logs
-
-```bash
-# All services
-docker-compose logs
-
-# Follow all services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f app
-
-# With timestamps
-docker-compose logs -t -f
-```
-
-### Log Filtering
-
-```bash
-# Filter by log level
-docker logs ps-foodbook-app | grep ERROR
-
-# Count errors
-docker logs --since 1h ps-foodbook-app | grep -c ERROR
-
-# Find specific pattern
-docker logs ps-foodbook-app | grep "API call failed"
-
-# Multiple patterns
-docker logs ps-foodbook-app | grep -E "ERROR|WARN"
-
-# Exclude patterns
-docker logs ps-foodbook-app | grep -v "health"
-```
-
-### Log Aggregation
-
-For production, aggregate logs to centralized system:
-
-#### Option 1: ELK Stack (Elasticsearch, Logstash, Kibana)
-
-```yaml
-# docker-compose.yml
-services:
-  app:
-    logging:
-      driver: "gelf"
-      options:
-        gelf-address: "udp://localhost:12201"
-
-  logstash:
-    image: docker.elastic.co/logstash/logstash:8.0.0
-    ports:
-      - "12201:12201/udp"
-```
-
-#### Option 2: Fluentd
-
-```yaml
-# docker-compose.yml
-services:
-  app:
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: localhost:24224
-        tag: docker.ps-foodbook
-```
-
-### Log Rotation
-
-Configure log rotation to prevent disk space issues:
-
-```yaml
-# docker-compose.yml
-services:
-  app:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"     # Rotate at 10MB
-        max-file: "3"       # Keep 3 files
-        compress: "true"    # Compress rotated logs
-```
-
-### Client-Side Logging
-
-**Endpoint**: `POST /api/log`
-
-**Usage**:
-```javascript
-import { logger } from '@/lib/utils/logger';
-
-// Log errors
-logger.error('API call failed', {
-  endpoint: '/api/products',
-  statusCode: 500,
-  error: 'Timeout'
-});
-
-// Log info
-logger.info('User action', {
-  action: 'search',
-  keyword: 'milk'
-});
-```
-
-**Configuration**:
-- Development: Logs to browser console
-- Production: Sends to `/api/log` → forwarded to Sentry
-
----
 
 ## Error Tracking (Sentry)
 
 ### Sentry Setup
 
-#### Installation
+Sentry is integrated for error tracking and performance monitoring.
 
+**Environment Configuration:**
 ```bash
-npm install @sentry/nextjs
-npx @sentry/wizard@latest -i nextjs
-```
-
-#### Configuration
-
-**Environment Variables** (`.env.production`):
-
-```bash
-# Public DSN (exposed to browser)
-NEXT_PUBLIC_SENTRY_DSN=https://abc123@o123456.ingest.sentry.io/789012
-
-# Server DSN (server-side only)
-SENTRY_DSN=https://abc123@o123456.ingest.sentry.io/789012
-
-# Organization and project
+# .env.production
+NEXT_PUBLIC_SENTRY_DSN=https://your-project@o123456.ingest.sentry.io/7890123
 SENTRY_ORG=ps-foodservice
-SENTRY_PROJECT=ps-foodbook
-
-# Auth token (for source maps upload)
-SENTRY_AUTH_TOKEN=sntrys_your_auth_token_here
+SENTRY_PROJECT=foodbook-frontend
+SENTRY_AUTH_TOKEN=your-auth-token
 ```
 
-**Configuration Files**:
+**Configuration Files:**
+- `sentry.client.config.ts` - Client-side Sentry configuration
+- `sentry.server.config.ts` - Server-side Sentry configuration
+- `sentry.edge.config.ts` - Edge runtime configuration
 
-`sentry.client.config.ts`:
-```typescript
-import * as Sentry from '@sentry/nextjs';
+### Error Tracking Features
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.NEXT_PUBLIC_APP_ENV || 'development',
-  tracesSampleRate: 0.1,  // 10% of transactions
-  replaysSessionSampleRate: 0.1,  // 10% of sessions
-  replaysOnErrorSampleRate: 1.0,  // 100% of errors
-});
-```
-
-`sentry.server.config.ts`:
-```typescript
-import * as Sentry from '@sentry/nextjs';
-
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.NEXT_PUBLIC_APP_ENV || 'development',
-  tracesSampleRate: 0.1,
-});
-```
-
-### Using Sentry
-
-#### Automatic Error Capture
-
-Sentry automatically captures:
+**Automatic Error Capture:**
 - Unhandled exceptions
-- Unhandled promise rejections
+- Promise rejections
 - Console errors
-- Network errors
-- React errors
+- React error boundaries
 
-#### Manual Error Capture
-
+**Custom Error Reporting:**
 ```typescript
 import * as Sentry from '@sentry/nextjs';
 
+// Capture exception with context
 try {
-  // Code that might throw
-  await riskyOperation();
+  await fetchProducts();
 } catch (error) {
   Sentry.captureException(error, {
-    level: 'error',
     tags: {
-      operation: 'product-search',
+      section: 'product-search',
+      action: 'fetch-products'
     },
-    contexts: {
-      search: {
-        keyword: 'milk',
-        locale: 'nl',
-      },
-    },
+    extra: {
+      filters: currentFilters,
+      page: currentPage
+    }
   });
 }
 ```
 
-#### Custom Messages
-
-```typescript
-// Info message
-Sentry.captureMessage('User completed checkout', {
-  level: 'info',
-  tags: { flow: 'checkout' },
-});
-
-// Warning
-Sentry.captureMessage('API response slow', {
-  level: 'warning',
-  tags: { api: 'products' },
-});
-```
-
-#### User Context
-
+**User Context:**
 ```typescript
 // Set user context
 Sentry.setUser({
-  id: user.id,
-  email: user.email,
-  username: user.name,
+  id: userId,
+  email: userEmail,
+  username: userName
 });
 
 // Clear user context on logout
@@ -576,506 +142,453 @@ Sentry.setUser(null);
 
 ### Sentry Dashboard
 
-**Access**: https://sentry.io/organizations/ps-foodservice/projects/ps-foodbook/
+Access your Sentry dashboard at: https://sentry.io/organizations/ps-foodservice/projects/foodbook-frontend/
 
-#### Key Sections
+**Key Sections:**
+- **Issues**: View and triage errors
+- **Performance**: Monitor transaction performance
+- **Releases**: Track deployments and regression
+- **Discover**: Query custom metrics
+- **Alerts**: Configure alert rules
 
-1. **Issues**:
-   - View all errors
-   - Group similar errors
-   - Track error frequency
-   - See stack traces
+### Alert Configuration
 
-2. **Performance**:
-   - Transaction overview
-   - Slow endpoints
-   - Database query performance
-   - Web vitals
+**Recommended Alerts:**
 
-3. **Releases**:
-   - Track deployments
-   - Compare release health
-   - Identify regressions
+1. **High Error Rate**
+   - Trigger: Error rate > 1% for 5 minutes
+   - Notify: #alerts-critical Slack channel
 
-4. **Alerts**:
-   - Configure alert rules
-   - Set thresholds
-   - Define notification channels
+2. **New Issue Detected**
+   - Trigger: First occurrence of new error
+   - Notify: #alerts-errors Slack channel
 
-### Sentry Alerts
+3. **Performance Degradation**
+   - Trigger: P95 response time > 3s for 10 minutes
+   - Notify: #alerts-performance Slack channel
 
-#### Error Rate Alert
+## Application Logging
 
-```
-Alert Name: High Error Rate
-Condition: Error count is more than 100 in 1 hour
-Actions: Send email to devops@psinfoodservice.com
-```
+### Log Levels
 
-#### Performance Alert
+The application uses structured logging with different levels:
 
-```
-Alert Name: Slow Performance
-Condition: P95 response time is above 2s for 5 minutes
-Actions: Send Slack notification to #alerts
-```
+- **ERROR**: Errors requiring immediate attention
+- **WARN**: Warning conditions that should be reviewed
+- **INFO**: Informational messages (default in production)
+- **DEBUG**: Detailed debugging information (dev/staging only)
 
-#### Issue Creation Alert
+### Client-Side Logging
 
-```
-Alert Name: New Critical Issue
-Condition: New issue is created with level: fatal
-Actions: Create PagerDuty incident
+Client logs are sent to the `/api/log` endpoint:
+
+```typescript
+import { logger } from '@/lib/utils/logger';
+
+// Log levels
+logger.error('Failed to load products', { error, filters });
+logger.warn('Slow API response', { duration, endpoint });
+logger.info('User performed search', { keyword, resultsCount });
+logger.debug('Filter state updated', { newFilters });
 ```
 
-### Release Tracking
+**Log Format:**
+```json
+{
+  "level": "error",
+  "message": "Failed to load products",
+  "timestamp": "2024-01-27T12:00:00.000Z",
+  "context": {
+    "error": "Network timeout",
+    "filters": { "category": "beverages" }
+  },
+  "userAgent": "Mozilla/5.0...",
+  "url": "/product?category=beverages"
+}
+```
 
-Associate errors with releases:
+### Server-Side Logging
 
+Server logs are written to stdout (captured by Docker):
+
+```typescript
+// In API routes or server components
+console.error('[ERROR]', 'Database connection failed', { error });
+console.warn('[WARN]', 'Cache miss', { key });
+console.info('[INFO]', 'API request completed', { endpoint, duration });
+```
+
+### Viewing Logs
+
+**Local Development:**
 ```bash
-# During deployment
-export SENTRY_RELEASE=$(git rev-parse HEAD)
+# View all logs
+docker-compose logs
 
-# Build with release info
-npm run build
+# Follow logs in real-time
+docker-compose logs -f
 
-# Create release in Sentry
-sentry-cli releases new $SENTRY_RELEASE
-sentry-cli releases set-commits $SENTRY_RELEASE --auto
-sentry-cli releases finalize $SENTRY_RELEASE
+# View logs for specific service
+docker-compose logs -f app
 
-# Upload source maps
-sentry-cli sourcemaps upload --release=$SENTRY_RELEASE .next
+# Filter by time
+docker-compose logs --since 30m
 ```
 
----
+**Production:**
+```bash
+# View container logs
+docker logs ps-foodbook-app
+
+# Follow logs
+docker logs -f ps-foodbook-app
+
+# Last 100 lines
+docker logs --tail 100 ps-foodbook-app
+
+# Filter by timestamp
+docker logs --since "2024-01-27T12:00:00" ps-foodbook-app
+```
+
+### Log Rotation
+
+Docker Compose is configured with log rotation:
+
+```yaml
+logging:
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+```
+
+This keeps:
+- Maximum 10 MB per log file
+- Maximum 3 log files
+- Total maximum: 30 MB of logs
 
 ## Performance Monitoring
 
-### Application Performance Monitoring (APM)
+### Sentry Performance Monitoring
 
-#### Sentry Performance
+Sentry automatically tracks:
+- Page load times
+- API request durations
+- Component render times
+- Resource loading times
 
-Automatically tracks:
-- **Transactions**: Page loads, API calls
-- **Spans**: Individual operations (database queries, HTTP requests)
-- **Web Vitals**: LCP, FID, CLS, TTFB
-
-#### Key Metrics
-
-**Core Web Vitals**:
-- **LCP (Largest Contentful Paint)**: < 2.5s (good)
-- **FID (First Input Delay)**: < 100ms (good)
-- **CLS (Cumulative Layout Shift)**: < 0.1 (good)
-- **TTFB (Time to First Byte)**: < 600ms (good)
-
-### Custom Performance Tracking
-
+**Custom Transactions:**
 ```typescript
 import * as Sentry from '@sentry/nextjs';
 
-// Start transaction
 const transaction = Sentry.startTransaction({
   name: 'Product Search',
-  op: 'search',
-});
-
-// Create span for specific operation
-const span = transaction.startChild({
-  op: 'http',
-  description: 'Fetch products from API',
+  op: 'search'
 });
 
 try {
-  const products = await fetchProducts();
-  span.setStatus('ok');
+  const results = await searchProducts(filters);
+  transaction.setStatus('ok');
 } catch (error) {
-  span.setStatus('internal_error');
+  transaction.setStatus('internal_error');
   throw error;
 } finally {
-  span.finish();
   transaction.finish();
 }
 ```
 
-### Performance Budget
+**Custom Spans:**
+```typescript
+const transaction = Sentry.getCurrentHub().getScope()?.getTransaction();
+if (transaction) {
+  const span = transaction.startChild({
+    op: 'api.call',
+    description: 'Fetch products from API'
+  });
 
-Set performance budgets:
+  try {
+    await apiCall();
+  } finally {
+    span.finish();
+  }
+}
+```
 
-| Resource | Budget | Current | Status |
-|----------|--------|---------|--------|
-| Total JS | < 300 KB | 250 KB | ✓ |
-| Total CSS | < 50 KB | 35 KB | ✓ |
-| Total Images | < 500 KB | 400 KB | ✓ |
-| Total Size | < 1 MB | 750 KB | ✓ |
-| Load Time | < 2s | 1.5s | ✓ |
+### Web Vitals
 
-Monitor with bundle analyzer:
+The application automatically reports Core Web Vitals to Sentry:
+
+- **LCP** (Largest Contentful Paint): < 2.5s
+- **FID** (First Input Delay): < 100ms
+- **CLS** (Cumulative Layout Shift): < 0.1
+- **FCP** (First Contentful Paint): < 1.8s
+- **TTFB** (Time to First Byte): < 600ms
+
+### Next.js Performance Metrics
+
+Monitor via Vercel Analytics or custom implementation:
+
+```typescript
+export function reportWebVitals(metric: NextWebVitalsMetric) {
+  if (metric.label === 'web-vital') {
+    Sentry.captureMessage(`Web Vital: ${metric.name}`, {
+      level: 'info',
+      extra: {
+        value: metric.value,
+        id: metric.id,
+        name: metric.name
+      }
+    });
+  }
+}
+```
+
+## Metrics & Dashboards
+
+### Key Metrics to Monitor
+
+**Application Metrics:**
+- Request rate (requests/min)
+- Error rate (%)
+- Response time (P50, P95, P99)
+- Availability (%)
+
+**Business Metrics:**
+- Product searches per hour
+- Product views per hour
+- PDF downloads per day
+- Catalog views per day
+
+**Infrastructure Metrics:**
+- CPU usage (%)
+- Memory usage (MB)
+- Container restarts
+- Disk usage (%)
+
+### Docker Metrics
+
+Monitor container resource usage:
 
 ```bash
-npm run build:analyze
-```
-
-### Real User Monitoring (RUM)
-
-Track actual user experiences:
-
-```javascript
-// Track custom metrics
-const navigation = performance.getEntriesByType('navigation')[0];
-const loadTime = navigation.loadEventEnd - navigation.fetchStart;
-
-// Send to analytics
-gtag('event', 'page_load', {
-  page_load_time: loadTime,
-  page_path: window.location.pathname,
-});
-```
-
----
-
-## Alerting
-
-### Alert Channels
-
-| Channel | Use Case | Response Time |
-|---------|----------|---------------|
-| **Email** | Non-urgent alerts | 1-4 hours |
-| **Slack** | Team notifications | 15-60 minutes |
-| **PagerDuty** | Critical incidents | 5-15 minutes |
-| **SMS** | On-call emergencies | Immediate |
-
-### Alert Types
-
-#### Critical Alerts (P1)
-
-**Trigger**: Service completely down
-
-**Conditions**:
-- Health check fails 3 times in a row
-- Error rate > 10%
-- Container not running
-
-**Action**:
-- PagerDuty incident
-- SMS to on-call engineer
-- Slack notification (#critical)
-
-#### High Priority Alerts (P2)
-
-**Trigger**: Major functionality broken
-
-**Conditions**:
-- Error rate > 1%
-- Response time P95 > 5s
-- Memory usage > 85%
-
-**Action**:
-- Slack notification (#alerts)
-- Email to devops@psinfoodservice.com
-
-#### Medium Priority Alerts (P3)
-
-**Trigger**: Performance degradation
-
-**Conditions**:
-- Response time P95 > 2s
-- CPU usage > 70%
-- Error rate > 0.5%
-
-**Action**:
-- Email notification
-- Log to monitoring dashboard
-
-### Alert Configuration
-
-#### Health Check Alert Script
-
-```bash
-#!/bin/bash
-# alert-health.sh
-
-URL="https://foodbook.psinfoodservice.com/api/health"
-FAILURES=0
-MAX_FAILURES=3
-
-while true; do
-  if ! curl -sf "$URL" > /dev/null; then
-    FAILURES=$((FAILURES + 1))
-
-    if [ $FAILURES -ge $MAX_FAILURES ]; then
-      # Send alert
-      curl -X POST https://slack.com/api/chat.postMessage \
-        -H "Authorization: Bearer $SLACK_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d "{
-          \"channel\": \"#alerts\",
-          \"text\": \":rotating_light: Health check failed $FAILURES times!\"
-        }"
-
-      FAILURES=0
-    fi
-  else
-    FAILURES=0
-  fi
-
-  sleep 60
-done
-```
-
-#### Sentry Alert Rules
-
-Configure in Sentry Dashboard:
-
-1. **Navigate**: Alerts → Create Alert Rule
-2. **Condition**: Select trigger condition
-3. **Actions**: Configure notifications
-4. **Save**: Activate alert rule
-
-### Alert Best Practices
-
-1. **Avoid Alert Fatigue**: Only alert on actionable items
-2. **Clear Thresholds**: Define precise trigger conditions
-3. **Escalation Path**: Define who gets alerted when
-4. **Runbook Links**: Include troubleshooting steps
-5. **Alert Grouping**: Group similar alerts
-6. **Regular Review**: Adjust thresholds based on experience
-
----
-
-## Dashboards
-
-### Monitoring Dashboard
-
-Create a centralized monitoring dashboard.
-
-#### Grafana Dashboard (Future Enhancement)
-
-**Panels**:
-1. **System Health**:
-   - Container status
-   - Health check status
-   - Uptime percentage
-
-2. **Performance**:
-   - Response time (P50, P95, P99)
-   - Request rate
-   - Error rate
-
-3. **Resources**:
-   - CPU usage
-   - Memory usage
-   - Network I/O
-
-4. **Business Metrics**:
-   - Daily active users
-   - Search volume
-   - Product views
-
-#### Sentry Dashboard
-
-**Access**: Sentry → Dashboards → Create Dashboard
-
-**Widgets**:
-1. Error count by time
-2. Top errors by frequency
-3. Affected users
-4. Performance trends
-5. Release health
-
-#### Custom Dashboard
-
-Simple HTML dashboard:
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>PS Foodbook Monitoring</title>
-  <meta http-equiv="refresh" content="30">
-</head>
-<body>
-  <h1>PS Foodbook Status</h1>
-
-  <div id="health">Loading...</div>
-  <div id="metrics">Loading...</div>
-
-  <script>
-    async function updateDashboard() {
-      // Health check
-      const health = await fetch('/api/health').then(r => r.json());
-      document.getElementById('health').innerHTML =
-        `Status: ${health.status} (${health.timestamp})`;
-
-      // Container metrics
-      const metricsResponse = await fetch('/api/metrics');
-      const metrics = await metricsResponse.json();
-      document.getElementById('metrics').innerHTML =
-        `CPU: ${metrics.cpu}% | Memory: ${metrics.memory}MB`;
-    }
-
-    updateDashboard();
-    setInterval(updateDashboard, 30000);
-  </script>
-</body>
-</html>
-```
-
----
-
-## SLIs, SLOs, and SLAs
-
-### Service Level Indicators (SLIs)
-
-**Measurable metrics** of service performance:
-
-1. **Availability**: Percentage of successful health checks
-2. **Latency**: Response time for requests
-3. **Error Rate**: Percentage of failed requests
-4. **Throughput**: Requests per second
-
-### Service Level Objectives (SLOs)
-
-**Internal targets** for SLIs:
-
-| SLO | Target | Measurement Period |
-|-----|--------|-------------------|
-| **Availability** | 99.9% | 30 days |
-| **Latency (P95)** | < 500ms | 24 hours |
-| **Error Rate** | < 0.1% | 24 hours |
-| **Page Load Time** | < 2s | 7 days |
-
-**Error Budget**: 0.1% × 30 days = 43 minutes of downtime per month
-
-### Service Level Agreements (SLAs)
-
-**External commitments** to users:
-
-| Metric | Commitment | Compensation |
-|--------|-----------|--------------|
-| **Uptime** | 99.5% monthly | Service credit |
-| **Support Response** | < 4 hours | Escalation |
-
-### Tracking SLIs/SLOs
-
-```bash
-# Calculate availability over last 30 days
-total_checks=$(docker logs --since 720h ps-foodbook-app | grep "health" | wc -l)
-failed_checks=$(docker logs --since 720h ps-foodbook-app | grep "health.*failed" | wc -l)
-availability=$(echo "scale=4; (1 - $failed_checks / $total_checks) * 100" | bc)
-
-echo "Availability: $availability%"
-```
-
----
-
-## Troubleshooting with Monitoring
-
-### Common Issues and Monitoring Indicators
-
-#### Issue: High Error Rate
-
-**Indicators**:
-- Sentry: Spike in error count
-- Logs: Increased ERROR level messages
-- Health check: May be failing
-
-**Investigation**:
-```bash
-# Check recent errors
-docker logs --since 1h ps-foodbook-app | grep ERROR
-
-# Check Sentry for patterns
-# Navigate to Sentry → Issues → Sort by frequency
-```
-
-#### Issue: Slow Performance
-
-**Indicators**:
-- Sentry: High P95 latency
-- Health check: Slow response time
-- Logs: Timeout messages
-
-**Investigation**:
-```bash
-# Check response times
-time curl https://foodbook.psinfoodservice.com/
-
-# Check resource usage
-docker stats --no-stream ps-foodbook-app
-
-# Check backend API performance
-time curl $FOODBOOK_API_URL/api/health
-```
-
-#### Issue: Memory Leak
-
-**Indicators**:
-- Docker stats: Increasing memory usage
-- Container restarts: Frequent OOM kills
-- Performance degradation over time
-
-**Investigation**:
-```bash
-# Monitor memory over time
-watch -n 5 'docker stats --no-stream ps-foodbook-app'
-
-# Check for OOM kills
-docker inspect ps-foodbook-app | jq '.State.OOMKilled'
-
-# Restart to mitigate
-docker restart ps-foodbook-app
-```
-
-### Monitoring Checklist During Incidents
-
-- [ ] Check health endpoint status
-- [ ] Review recent error logs
-- [ ] Check Sentry for error spikes
-- [ ] Verify resource usage (CPU, memory)
-- [ ] Test critical user flows
-- [ ] Check backend API status
-- [ ] Review recent deployments
-- [ ] Check for infrastructure issues
-
----
-
-## Summary
-
-### Quick Reference
-
-```bash
-# Health check
-curl http://localhost:3000/api/health
-
-# View logs
-docker logs -f --tail 100 ps-foodbook-app
-
-# Container metrics
+# Real-time resource usage
 docker stats ps-foodbook-app
 
-# Check errors
-docker logs --since 1h ps-foodbook-app | grep ERROR
+# Container information
+docker inspect ps-foodbook-app
 
-# Sentry dashboard
-open https://sentry.io/organizations/ps-foodservice/projects/ps-foodbook/
+# Check restart count
+docker inspect ps-foodbook-app | grep -A 3 RestartCount
 ```
 
-### Key Monitoring URLs
+### Creating Custom Dashboards
 
-- **Health Check**: `https://foodbook.psinfoodservice.com/api/health`
-- **Sentry Dashboard**: `https://sentry.io/organizations/ps-foodservice/projects/ps-foodbook/`
-- **Google Analytics**: `https://analytics.google.com/`
+**Sentry Dashboard:**
+1. Go to Sentry → Dashboards → Create Dashboard
+2. Add widgets for:
+   - Error frequency by endpoint
+   - P95 response time by page
+   - User impact (affected users)
+   - Release comparison
 
-### Contact Information
+**Grafana Dashboard (if using):**
+1. Connect to Docker metrics endpoint
+2. Create panels for CPU, memory, network
+3. Add alerting rules
 
-- **Monitoring Issues**: devops@psinfoodservice.com
-- **Critical Alerts**: oncall@psinfoodservice.com
-- **Sentry Support**: https://sentry.io/support/
+## Alerts & Notifications
+
+### Slack Integration
+
+Configure Slack notifications for critical events:
+
+**Sentry Slack Integration:**
+1. Go to Sentry → Settings → Integrations → Slack
+2. Connect workspace
+3. Configure alert rules to post to channels
+
+**Recommended Channels:**
+- `#alerts-critical` - Production errors, outages
+- `#alerts-errors` - New errors, high error rates
+- `#alerts-performance` - Performance degradation
+- `#deployments` - Deployment notifications
+
+### Email Alerts
+
+Configure email alerts for:
+- Application down (health check fails)
+- Critical errors (500 responses)
+- High error rate (> 1% for 5 min)
+- Memory/CPU threshold exceeded
+
+### PagerDuty Integration (Optional)
+
+For 24/7 on-call rotation:
+1. Configure PagerDuty service
+2. Integrate with Sentry
+3. Set escalation policies
+4. Configure notification rules
+
+## Troubleshooting
+
+### Common Issues
+
+#### 1. High Memory Usage
+
+**Symptoms:**
+- Container restarts
+- Slow response times
+- OOM errors in logs
+
+**Investigation:**
+```bash
+# Check memory usage
+docker stats ps-foodbook-app
+
+# View memory-related logs
+docker logs ps-foodbook-app | grep -i "memory\|heap"
+
+# Check for memory leaks in Sentry
+# Look for increasing heap usage over time
+```
+
+**Resolution:**
+- Increase container memory limit
+- Review TanStack Query cache size
+- Check for memory leaks in components
+- Optimize image loading
+
+#### 2. High Error Rate
+
+**Symptoms:**
+- Spike in Sentry errors
+- User complaints
+- 500 responses
+
+**Investigation:**
+```bash
+# Check recent errors
+docker logs --tail 100 ps-foodbook-app | grep ERROR
+
+# View error details in Sentry
+# Check error grouping and affected users
+```
+
+**Resolution:**
+- Identify root cause from stack traces
+- Check API connectivity
+- Verify environment variables
+- Review recent deployments
+
+#### 3. Slow Response Times
+
+**Symptoms:**
+- High P95 response time
+- User complaints of slowness
+- Timeout errors
+
+**Investigation:**
+```bash
+# Check CPU usage
+docker stats ps-foodbook-app
+
+# Review slow transactions in Sentry
+# Identify bottleneck operations
+```
+
+**Resolution:**
+- Optimize database queries
+- Increase cache revalidation time
+- Enable ISR for static pages
+- Review bundle size
+- Add CDN for static assets
+
+#### 4. Health Check Failures
+
+**Symptoms:**
+- Container marked unhealthy
+- Automatic restarts
+- Health check timeouts
+
+**Investigation:**
+```bash
+# Check health endpoint directly
+curl http://localhost:3000/api/health
+
+# View health check logs
+docker inspect ps-foodbook-app | grep -A 20 Health
+
+# Check application logs
+docker logs ps-foodbook-app
+```
+
+**Resolution:**
+- Verify application is listening on port 3000
+- Check health endpoint implementation
+- Review startup time vs start_period
+- Ensure dependencies are healthy
+
+### Debug Mode
+
+Enable debug logging for troubleshooting:
+
+```bash
+# .env.production
+LOG_LEVEL=debug
+NEXT_PUBLIC_LOG_LEVEL=debug
+```
+
+**Warning:** Debug mode logs sensitive data. Disable in production after troubleshooting.
+
+### Log Analysis Commands
+
+```bash
+# Count errors in last hour
+docker logs ps-foodbook-app --since 1h | grep ERROR | wc -l
+
+# Find specific error
+docker logs ps-foodbook-app | grep -i "timeout"
+
+# View errors with context (10 lines before/after)
+docker logs ps-foodbook-app | grep -B 10 -A 10 ERROR
+
+# Export logs to file
+docker logs ps-foodbook-app > /tmp/app-logs-$(date +%Y%m%d-%H%M%S).log
+```
+
+## Monitoring Checklist
+
+**Daily:**
+- [ ] Check Sentry dashboard for new errors
+- [ ] Review error trends and spikes
+- [ ] Monitor application health status
+- [ ] Check response time metrics
+
+**Weekly:**
+- [ ] Review Sentry performance insights
+- [ ] Analyze Web Vitals trends
+- [ ] Check log storage usage
+- [ ] Review alert configurations
+
+**Monthly:**
+- [ ] Audit error grouping and resolution
+- [ ] Review and update alert thresholds
+- [ ] Optimize slow transactions
+- [ ] Update monitoring documentation
+
+## Additional Resources
+
+- [Sentry Documentation](https://docs.sentry.io/)
+- [Next.js Monitoring](https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation)
+- [Docker Logging Best Practices](https://docs.docker.com/config/containers/logging/)
+- [Web Vitals](https://web.dev/vitals/)
+
+## Support
+
+For monitoring issues or questions:
+- **Internal**: #dev-support Slack channel
+- **Sentry**: Check [status.sentry.io](https://status.sentry.io/)
+- **On-call**: See PagerDuty rotation
 
 ---
 
-**Document Version**: 1.0.0
-**Last Updated**: 2026-01-27
-**Next Review**: 2026-04-27
-**Owner**: PS in Foodservice DevOps Team
+*Last updated: 2024-01-27*
