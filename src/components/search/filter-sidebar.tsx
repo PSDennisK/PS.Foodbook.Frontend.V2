@@ -318,8 +318,9 @@ function SelectFilter({ filter, activeValue }: FilterComponentProps) {
             key={option.id}
             type="button"
             onClick={() => handleSelect(option.id)}
-            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-              }`}
+            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
+              isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+            }`}
             // biome-ignore lint/a11y/useSemanticElements: Radio role is appropriate for custom radio button in radiogroup
             role="radio"
             aria-checked={isSelected}
@@ -554,12 +555,7 @@ function BrandFilter() {
       </button>
 
       {isExpanded && (
-        <div
-          className="space-y-3"
-          id="filter-brand"
-          role="region"
-          aria-labelledby="filter-brand-button"
-        >
+        <section className="space-y-3" id="filter-brand" aria-labelledby="filter-brand-button">
           {isLoading ? (
             <div className="text-sm text-muted-foreground">Laden...</div>
           ) : (
@@ -622,7 +618,7 @@ function BrandFilter() {
               </div>
             </>
           )}
-        </div>
+        </section>
       )}
     </div>
   );
