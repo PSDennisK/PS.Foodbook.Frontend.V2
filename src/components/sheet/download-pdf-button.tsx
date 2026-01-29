@@ -1,6 +1,6 @@
 'use client';
-import { Download, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { Download, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { buildProductSheetUrl, getLocalizedPath } from '@/lib/utils/url';
@@ -19,12 +19,7 @@ export function DownloadPdfButton({ productId, productName, locale }: DownloadPd
     setIsLoading(true);
 
     try {
-      const sheetPath = buildProductSheetUrl(productId, productName);
-      const pdfPath = `${sheetPath}/pdf`;
-      const localizedPdfUrl = getLocalizedPath(locale, pdfPath);
-
-      // Open PDF in new window/tab
-      window.open(localizedPdfUrl, '_blank');
+      alert('Soon you will be able to download the PDF...');
     } catch (error) {
       console.error('Failed to download PDF:', error);
     } finally {

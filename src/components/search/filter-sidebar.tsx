@@ -318,9 +318,8 @@ function SelectFilter({ filter, activeValue }: FilterComponentProps) {
             key={option.id}
             type="button"
             onClick={() => handleSelect(option.id)}
-            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
-              isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-            }`}
+            className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${isSelected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+              }`}
             // biome-ignore lint/a11y/useSemanticElements: Radio role is appropriate for custom radio button in radiogroup
             role="radio"
             aria-checked={isSelected}
@@ -393,6 +392,7 @@ function BrandFilter() {
     pageSize,
   } = useFilterStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExpanded, setIsExpanded] = useState(true);
 
   // Haal alle brands op via API route
   const { data: brands = [], isLoading } = useQuery<BrandAll[]>({
@@ -529,72 +529,101 @@ function BrandFilter() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="border-b pb-4">
-        <h3 className="font-medium text-sm mb-3">Merk</h3>
-        <div className="text-sm text-muted-foreground">Laden...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="border-b pb-4">
-      <h3 className="font-medium text-sm mb-3">Merk</h3>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between w-full mb-3 hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded"
+        aria-expanded={isExpanded}
+        aria-controls="filter-brand"
+        id="filter-brand-button"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsExpanded(!isExpanded);
+          }
+        }}
+      >
+        <span className="font-medium text-sm">Merk</span>
+        {isExpanded ? (
+          <ChevronUp className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        )}
+      </button>
 
-      {/* Zoekveld */}
-      <div className="relative mb-3">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Zoek merk..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8 h-9 text-sm"
-          aria-label="Zoek in merken"
-        />
-      </div>
-
-      {/* Scrollbare brand lijst */}
-      <div className="max-h-56 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/30">
-        <div className="space-y-2">
-          {filteredBrands.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-2">
-              {searchQuery ? 'Geen merken gevonden' : 'Geen merken beschikbaar'}
-            </div>
+      {isExpanded && (
+        <div
+          className="space-y-3"
+          id="filter-brand"
+          role="region"
+          aria-labelledby="filter-brand-button"
+        >
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Laden...</div>
           ) : (
-            filteredBrands.map((brand) => {
-              // Gebruik eerste ID als key (of naam als fallback)
-              const brandKey = brand.id[0]?.toString() || brand.name;
-              const brandName = brand.name;
-              const isChecked = isBrandSelected(brand);
+            <>
+              {/* Zoekveld */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Zoek merk..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 h-9 text-sm"
+                  aria-label="Zoek in merken"
+                />
+              </div>
 
-              // Haal count op voor dit brand (gebruik eerste ID als lookup)
-              // Als brand meerdere IDs heeft, tel de counts op
-              const brandCount = brand.id.reduce((total, id) => {
-                const count = brandCountsMap.get(id);
-                return total + (count ?? 0);
-              }, 0);
+              {/* Scrollbare brand lijst */}
+              <div className="max-h-56 overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-muted-foreground/30">
+                <div className="space-y-2">
+                  {filteredBrands.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-2">
+                      {searchQuery ? 'Geen merken gevonden' : 'Geen merken beschikbaar'}
+                    </div>
+                  ) : (
+                    filteredBrands.map((brand) => {
+                      // Gebruik eerste ID als key (of naam als fallback)
+                      const brandKey = brand.id[0]?.toString() || brand.name;
+                      const brandName = brand.name;
+                      const isChecked = isBrandSelected(brand);
 
-              return (
-                <div key={brandKey} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`brand-${brandKey}`}
-                    checked={isChecked}
-                    onCheckedChange={() => handleToggle(brand)}
-                  />
-                  <Label htmlFor={`brand-${brandKey}`} className="text-sm cursor-pointer flex-1">
-                    {brandName}
-                    {brandCount > 0 && (
-                      <span className="text-muted-foreground ml-1">({brandCount})</span>
-                    )}
-                  </Label>
+                      // Haal count op voor dit brand (gebruik eerste ID als lookup)
+                      // Als brand meerdere IDs heeft, tel de counts op
+                      const brandCount = brand.id.reduce((total, id) => {
+                        const count = brandCountsMap.get(id);
+                        return total + (count ?? 0);
+                      }, 0);
+
+                      return (
+                        <div key={brandKey} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`brand-${brandKey}`}
+                            checked={isChecked}
+                            onCheckedChange={() => handleToggle(brand)}
+                          />
+                          <Label
+                            htmlFor={`brand-${brandKey}`}
+                            className="text-sm cursor-pointer flex-1"
+                          >
+                            {brandName}
+                            {brandCount > 0 && (
+                              <span className="text-muted-foreground ml-1">({brandCount})</span>
+                            )}
+                          </Label>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              );
-            })
+              </div>
+            </>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
