@@ -34,7 +34,7 @@ export function ProductInfo({ product, locale }: ProductInfoProps) {
         {brandName &&
           (brandId ? (
             <Link
-              href={buildBrandUrl(brandId, brandName, locale)}
+              href={buildBrandUrl(brandId, brandName)}
               className="text-xl text-primary hover:underline"
             >
               {brandName}
